@@ -343,9 +343,9 @@ Rules: never claim something works without a link, a test result or command outp
 ## 14. Project Memory (living — keep updated; newest first within each list)
 
 ### Current state
-- Milestone: **M1 done** (70/70 forge tests). **M2 gate: PASS locally + on the Whitechain node via state override**; real deployment pending WBT. Starting M3 (TS: sdk, relayer, facilitator, merchant).
-- Next action: deploy script ready → faucet WBT to relayer `0xD49fF88e1193Bf66D7e1d2b6d81a190C8a07d0Fc` → `pnpm deploy:whitechain` → real Falcon applyChange tx on 1874. Meanwhile build M3.
-- Blockers: relayer has 0 WBT (faucet). USDT: human will get it from Whitechain.
+- Milestone: **M1 done** (forge green). **M2 gate PASS on deployed contracts** (2026-11-06): verified EthFalconVerifier on 1874 returns true for off-chain Falcon sigs over Leash digests (`contracts/test/vectors/falcon_leash.json`), false for wrong digest, ~1.58M gas. **M3 in progress**: sdk + relayer + facilitator + merchant done and green on anvil e2e (30 paid calls → 3 claims); next = run it on Whitechain with real USDT.
+- Next action: owner CLI (real Falcon key `keys/owner.json`) → create demo vault on 1874 via relay → human sends USDT to the vault address → run facilitator+merchant against 1874 → first real `Claimed` tx.
+- Blockers: USDT (human getting it from Whitechain; fallback = swap WBT→USDT, see docs/research/whitechain-hedera.md).
 - Keys live in `.env` (gitignored, generated 2026-11-05). Falcon keys in `keys/` (gitignored). Python signer venv: `tools/owner-signer/.venv` (numpy, pycryptodome, eth_abi, polyntt @ ZKNoxHQ/NTT 3ac5f5d).
 - Research notes: `docs/research/x402.md`, `docs/research/world-idp.md` — read these before touching x402 or World code.
 
@@ -379,7 +379,7 @@ Rules: never claim something works without a link, a test result or command outp
 | Hedera SDK | `@hiero-ledger/sdk` 2.90.1 (renamed `@hashgraph/sdk`); per-tx gas cap 15M | 2026-11-05 |
 | ERC-4337 EntryPoint v0.7 (informational) | has code (16,035 B). Also present: CREATE2 deployer `0x4e59…956C`, Multicall3 `0xcA11…CA11` | 2026-11-05 |
 | ETHFALCON verify on Whitechain | **PASS via state override** (not yet a real deployment): ZKNox `ZKNOX_ethfalcon` @ commit `43ac863` (2026-10-21), solc 0.8.25, runtime 6,985 B (< EIP-170). Vectors 0–2 from `test/ethfalcon.t.sol`: valid → `true`, tampered message → `false`. | 2026-11-05 |
-| ETHFALCON real deployment on Whitechain | **NOT DONE** — needs funded deployer key (HUMAN) | 2026-11-05 |
+| ETHFALCON real deployment on Whitechain | **DONE + verified** `0x4b92…D2bB` (ZKNox) behind `EthFalconVerifier 0x78Cd…B7cB`; M2 gate PASS against the deployed contract | 2026-11-06 |
 | Off-chain Falcon sig over **Leash EIP-712 digests** verifies on Whitechain node | **PASS** (state override): init/change0/change1 digests from `contracts/test/vectors/falcon_leash.json` → `true`, tampered → `false` | 2026-11-05 |
 | x402 v2 header names | **CONFIRMED** `PAYMENT-REQUIRED` (402), `PAYMENT-SIGNATURE` (retry), `PAYMENT-RESPONSE` (success); base64 JSON; @x402/* 2.30.0 | 2026-11-05 |
 | x402 discovery format | No normative `/.well-known/x402`; official = Bazaar extension + facilitator `GET /discovery/resources`; `.well-known/x402` only in IETF draft-hawkins-x402-dns-discovery-03 | 2026-11-05 |
@@ -393,6 +393,12 @@ Rules: never claim something works without a link, a test result or command outp
 ### Deployed addresses
 | Chain | Contract | Address | Tx | Verified |
 |---|---|---|---|---|
+| Whitechain 1874 | ZKNOX_ethfalcon | `0x4b92C21C389F46d5C6e7339ff3A83e509a91D2bB` | `0xedfb1a2555302f0e795b3fd46bcf3752cd5ad7d95e955a5adaa34fcec41e5b1d` | ✅ Blockscout |
+| Whitechain 1874 | EthFalconVerifier | `0x78CdF2C1597487Be1C61dD74C3388C45Dd31B7cB` | `0xb95c78e1689930eee8059dac24bc878f5a49a8c1f34ff76ad84695e9294ddf14` | ✅ Blockscout |
+| Whitechain 1874 | LeashFactory | `0x754180420d905DbE4A92990C39b22F7373393C66` | `0x02b7e6e0f9cdb2100fcbbbc76d809e6357f7215ebc05192d6eb91789e004a7b5` | ✅ Blockscout |
+| Whitechain 1874 | LeashVault (implementation) | `0x3B0E1F9450203a542f7DC644e58F5CDf13cDB306` | (created by factory) | ✅ Blockscout |
+- Config: token USDT `0xcedf…55a7`, attestor `0xCf3Ec7e25b141Da86CB31FcEBBf7d06D51118Ed6`, relayer `0xD49fF88e1193Bf66D7e1d2b6d81a190C8a07d0Fc`, fee recipient `0x15214887bECB1bfA641aC5F9F03229Bd299bAFc4`, claimFee 1000 (0.001 USDT). Full JSON: `contracts/deployments/1874.json`.
+- Faucet: human claimed 2 WBT → relayer, tx `0x756972958c9f60aa8191a81cee37c08b5c43e42df72b0c8a164236932ef342c6` (2026-11-06). Deploy cost ≈ 0.037 WBT.
 
 ### Environment (names only, never values)
 WHITECHAIN_RPC, RELAYER_PK_WHITECHAIN, ATTESTOR_PK, WORLD_CLIENT_ID, WORLD_CLIENT_SECRET, HEDERA_OPERATOR_ID, HEDERA_OPERATOR_KEY, RELAYER_PK_HEDERA, HCS_TOPIC_ID, USDT_ADDRESS, HEDERA_USDC_ADDRESS, LLM_API_KEY (optional)
@@ -404,6 +410,8 @@ WHITECHAIN_RPC, RELAYER_PK_WHITECHAIN, ATTESTOR_PK, WORLD_CLIENT_ID, WORLD_CLIEN
 | claim (estimate, not measured) | L1 data fee ≈ 0; ~0.0005 WBT if ~100k gas | — |
 | forge (local, MockPQ): openChannel 164,512 · claim ≤ 93,360 · closeExpired ≤ 25,635 · applyChange median 43,350 · createVault median 261,385 (see contracts/gas-report.txt) | — | — |
 | forge (local, real Falcon): EthFalconVerifier.verify 1,519,451 in-EVM · applyChange loosening 1,577,791 | — | — |
+| Deploy (real): ZKNOX_ethfalcon 1,557,504 · EthFalconVerifier 411,680 · LeashFactory(+impl) 5,443,894 | 0.037 WBT total | — |
+| EthFalconVerifier.verify on deployed contract (eth_estimateGas, whole tx) | 1,580,346–1,581,200 | — |
 
 ### Open questions for the human
 - Relayer + deployer key: create one, fund with WBT (faucet?), put in `.env` as `RELAYER_PK_WHITECHAIN`. Then M0 can record the balance and do a real ETHFALCON deploy.

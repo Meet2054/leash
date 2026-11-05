@@ -1,0 +1,188 @@
+/**
+ * Owner CLI — the owner's post-quantum (ETHFALCON) key never leaves this machine; every action is relayed,
+ * so the owner never sends a gas-paying transaction.
+ *
+ *   owner init                       generate the Falcon owner key + agent session key
+ *   owner address                    show the counterfactual vault (USDT deposit) address
+ *   owner create-vault [--attest local]
+ *   owner status
+ *   owner set-session-cap <usdt> [--attest local]      (loosening if higher → needs World approval)
+ *   owner revoke-session [address]                       (tightening: PQ signature only)
+ *   owner withdraw <usdt> <to> [--attest local]
+ *
+ * --attest local: sign the WorldApproval with ATTESTOR_PK directly. This SKIPS the World ID check and is
+ * labelled MOCKED; the real path is the owner app's approval flow (World Agent Pass → attestor API).
+ */
+import { formatUnits, getAddress, type Address, type Hex } from "viem";
+import {
+  Action,
+  describeOp,
+  encode,
+  encodeOps,
+  formatUnits6,
+  initConfigDigest,
+  leashFactoryAbi,
+  leashVaultAbi,
+  mandateChangeDigest,
+  parseUnits6,
+  worldApprovalDigest,
+  EXPLORERS,
+  type Op,
+} from "@leash/sdk";
+import { privateKeyToAccount } from "viem/accounts";
+import { ensureOwnerKey, falconSign } from "./lib/falcon.js";
+import {
+  CHAIN_ID,
+  FACILITATOR_URL,
+  agentSession,
+  deployment,
+  loadVault,
+  merchantAddresses,
+  nowSec,
+  post,
+  publicClient,
+  saveVault,
+  subjectHash,
+  vaultRecordPath,
+} from "./lib/config.js";
+
+const [, , cmd, ...args] = process.argv;
+const flag = (name: string) => args.includes(`--${name}`) ? args[args.indexOf(`--${name}`) + 1] : undefined;
+const tx = (h: string) => EXPLORERS[CHAIN_ID]?.tx(h) ?? h;
+
+const DEMO = {
+  sessionCap: parseUnits6(process.env.DEMO_SESSION_CAP ?? "5"),
+  sessionTtl: 24n * 3600n,
+  merchantDaily: parseUnits6(process.env.DEMO_MERCHANT_DAILY ?? "10"),
+  merchantMaxChannel: parseUnits6(process.env.DEMO_MERCHANT_MAX_CHANNEL ?? "1"),
+};
+
+function worldSubject() {
+  return process.env.WORLD_SUBJECT ?? "cli-bootstrap:owner-1";
+}
+
+function localAttest(verifyingContract: Address, wa: { vault: Address; changeHash: Hex; nonce: bigint; worldSubjectHash: Hex; authTime: bigint; deadline: bigint }) {
+  const pk = process.env.ATTESTOR_PK as Hex;
+  if (!pk) throw new Error("ATTESTOR_PK missing");
+  console.log("  ⚠ World approval MOCKED: attestor key signed locally without a World ID check (--attest local)");
+  return privateKeyToAccount(pk).sign({ hash: worldApprovalDigest(CHAIN_ID, verifyingContract, wa) });
+}
+
+async function predicted(pqPubKeyHash: Hex, wsh: Hex) {
+  return publicClient.readContract({ address: deployment.factory, abi: leashFactoryAbi, functionName: "predictVaultFor", args: [pqPubKeyHash, wsh] });
+}
+
+async function cmdInit() {
+  const k = ensureOwnerKey();
+  const s = agentSession();
+  console.log(`owner Falcon pubKeyHash ${k.pubKeyHash} (1024-byte key in keys/owner.json)`);
+  console.log(`agent session ${s.address} (keys/agent-session.json, holds no gas)`);
+}
+
+async function cmdAddress() {
+  const k = ensureOwnerKey();
+  const v = await predicted(k.pubKeyHash, subjectHash(worldSubject()));
+  console.log(`vault (deposit address) ${v}\n  ${EXPLORERS[CHAIN_ID]?.address(v)}`);
+}
+
+async function cmdCreateVault() {
+  const k = ensureOwnerKey();
+  const session = agentSession();
+  const m = merchantAddresses();
+  const wsh = subjectHash(worldSubject());
+  const ops: Op[] = [
+    encode.setMerchant(m.quote, DEMO.merchantDaily, DEMO.merchantMaxChannel),
+    encode.setMerchant(m.translate, DEMO.merchantDaily, DEMO.merchantMaxChannel),
+    encode.setMerchant(m.summarize, DEMO.merchantDaily, DEMO.merchantMaxChannel),
+    encode.addSession(session.address, nowSec() + DEMO.sessionTtl, DEMO.sessionCap),
+  ];
+  const cfg = { pqPubKeyHash: k.pubKeyHash, worldSubjectHash: wsh, verifier: deployment.ethFalconVerifier, initialMandate: encodeOps(ops) };
+  const vault = await predicted(k.pubKeyHash, wsh);
+  console.log(`creating vault ${vault}`);
+  for (const op of ops) console.log(`  · ${describeOp(op, (a) => `${formatUnits6(a)} USDT`)}`);
+  const digest = initConfigDigest(CHAIN_ID, deployment.factory, cfg);
+  console.log("  signing InitConfig with the owner's ETHFALCON key…");
+  const pqSig = falconSign(digest);
+  const wa = { vault, changeHash: digest, nonce: 0n, worldSubjectHash: wsh, authTime: nowSec(), deadline: nowSec() + 600n };
+  if (flag("attest") !== "local") throw new Error("vault creation from the CLI needs --attest local (the web app does the real World flow)");
+  const attestorSig = await localAttest(deployment.factory, wa);
+  const r = await post<{ vault: Address; txHash: Hex; gasUsed: string }>(`${FACILITATOR_URL}/relay/createVault`, { cfg, pqPubKey: k.pubKey, pqSig, wa, attestorSig });
+  saveVault({ vault: r.vault, worldSubjectHash: wsh, worldSubject: worldSubject(), pqPubKeyHash: k.pubKeyHash, createdTx: r.txHash, mockedWorld: true });
+  console.log(`✔ vault created by the relayer (gas ${r.gasUsed}): ${tx(r.txHash)}\n  saved ${vaultRecordPath()}\n  → send USDT to ${r.vault}`);
+}
+
+async function applyChange(op: Op, attest?: string) {
+  const v = loadVault();
+  const k = ensureOwnerKey();
+  const nonce = await publicClient.readContract({ address: v.vault, abi: leashVaultAbi, functionName: "mandateNonce" });
+  const change = { action: op.action, data: op.data, nonce, deadline: nowSec() + 600n };
+  const loosening = await publicClient.readContract({ address: v.vault, abi: leashVaultAbi, functionName: "isLoosening", args: [op.action, op.data] });
+  console.log(`${loosening ? "LOOSENING" : "tightening"}: ${describeOp(op, (a) => `${formatUnits6(a)} USDT`)}`);
+  const digest = mandateChangeDigest(CHAIN_ID, v.vault, change);
+  console.log("  signing MandateChange with the owner's ETHFALCON key…");
+  const pqSig = falconSign(digest);
+  let wa = null;
+  let attestorSig: Hex = "0x";
+  if (loosening) {
+    if (attest !== "local") throw new Error("loosening needs a World approval: use the owner app, or --attest local (MOCKED)");
+    wa = { vault: v.vault, changeHash: digest, nonce, worldSubjectHash: v.worldSubjectHash, authTime: nowSec(), deadline: nowSec() + 600n };
+    attestorSig = await localAttest(v.vault, wa);
+  }
+  const r = await post<{ txHash: Hex; gasUsed: string }>(`${FACILITATOR_URL}/relay/applyChange`, { vault: v.vault, change, pqPubKey: k.pubKey, pqSig, wa, attestorSig });
+  console.log(`✔ applied (gas ${r.gasUsed}): ${tx(r.txHash)}`);
+}
+
+async function cmdStatus() {
+  const v = loadVault();
+  const s = agentSession();
+  const m = merchantAddresses();
+  const read = <T>(functionName: string, a: unknown[] = []) =>
+    publicClient.readContract({ address: v.vault, abi: leashVaultAbi, functionName: functionName as never, args: a as never }) as Promise<T>;
+  const [bal, free, locked, nonce, sess] = await Promise.all([
+    publicClient.readContract({ address: deployment.token, abi: [{ type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ type: "address" }], outputs: [{ type: "uint256" }] }], functionName: "balanceOf", args: [v.vault] }),
+    read<bigint>("freeBalance"),
+    read<bigint>("totalLocked"),
+    read<bigint>("mandateNonce"),
+    read<readonly [bigint, boolean, bigint, bigint, bigint]>("sessions", [s.address]),
+  ]);
+  console.log(`vault ${v.vault}  (${EXPLORERS[CHAIN_ID]?.address(v.vault)})`);
+  console.log(`  USDT ${formatUnits(bal, 6)} | free ${formatUnits(free, 6)} | locked ${formatUnits(locked, 6)} | mandateNonce ${nonce}`);
+  console.log(`  World subject ${v.worldSubject}${v.mockedWorld ? " (MOCKED bootstrap)" : ""}`);
+  console.log(`  session ${s.address}: cap ${formatUnits(sess[2], 6)} locked ${formatUnits(sess[3], 6)} spent ${formatUnits(sess[4], 6)} revoked ${sess[1]} expires ${new Date(Number(sess[0]) * 1000).toISOString()}`);
+  for (const [name, a] of Object.entries(m)) {
+    const r = await read<readonly [boolean, bigint, bigint, bigint, bigint]>("merchants", [a]);
+    console.log(`  merchant ${name} ${a}: allowed ${r[0]} daily ${formatUnits(r[2], 6)} (today ${formatUnits(r[3], 6)}) maxChannel ${formatUnits(r[4], 6)}`);
+  }
+  console.log(`  agent WBT balance: ${formatUnits(await publicClient.getBalance({ address: s.address }), 18)} (never funded)`);
+}
+
+const main = async () => {
+  switch (cmd) {
+    case "init":
+      return cmdInit();
+    case "address":
+      return cmdAddress();
+    case "create-vault":
+      return cmdCreateVault();
+    case "status":
+      return cmdStatus();
+    case "set-session-cap": {
+      const s = args[0] && !args[0].startsWith("--") ? args[0] : undefined;
+      if (!s) throw new Error("usage: owner set-session-cap <usdt>");
+      const sess = agentSession();
+      const cur = await publicClient.readContract({ address: loadVault().vault, abi: leashVaultAbi, functionName: "sessions", args: [sess.address] });
+      return applyChange(encode.setSessionLimits(sess.address, BigInt(cur[0]), parseUnits6(s)), flag("attest"));
+    }
+    case "revoke-session":
+      return applyChange(encode.revokeSession(args[0] && !args[0].startsWith("--") ? getAddress(args[0]) : agentSession().address));
+    case "withdraw":
+      return applyChange(encode.withdraw(getAddress(args[1]), parseUnits6(args[0])), flag("attest"));
+    default:
+      console.log("commands: init | address | create-vault --attest local | status | set-session-cap <usdt> | revoke-session [addr] | withdraw <usdt> <to>");
+      void Action;
+  }
+};
+main().catch((e) => {
+  console.error("✘", e instanceof Error ? e.message : e);
+  process.exit(1);
+});

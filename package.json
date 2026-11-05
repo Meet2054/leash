@@ -9,7 +9,11 @@
     "test:contracts": "cd contracts && forge test",
     "test:ts": "pnpm -r --if-present test",
     "status": "bash scripts/status.sh",
-    "deploy:whitechain": "bash scripts/deploy-whitechain.sh"
+    "deploy:whitechain": "bash scripts/deploy-whitechain.sh",
+    "facilitator": "pnpm --filter @leash/facilitator start",
+    "merchant": "pnpm --filter @leash/merchant start",
+    "owner": "pnpm --filter @leash/agent owner",
+    "agent": "pnpm --filter @leash/agent agent"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
