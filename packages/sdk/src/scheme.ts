@@ -14,6 +14,11 @@ export const KNOWN_ASSETS: Record<string, { asset: Address; decimals: number; sy
   [NETWORKS.hederaEvm]: { asset: "0x0000000000000000000000000000000000068cda", decimals: 6, symbol: "USDC" },
 };
 
+/** Register a non-default asset (e.g. a local devnet token) for client spend controls and server pricing. */
+export function registerAsset(network: string, a: { asset: Address; decimals: number; symbol: string }) {
+  KNOWN_ASSETS[network] = a;
+}
+
 export const EXPLORERS: Record<number, { tx: (h: string) => string; address: (a: string) => string }> = {
   1874: {
     tx: (h) => `https://explorer.testnet.whitechain.io/tx/${h}`,

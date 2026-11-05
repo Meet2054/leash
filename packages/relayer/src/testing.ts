@@ -9,7 +9,7 @@ export const ANVIL_KEYS = [
   "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6",
 ] as const;
 
-async function freePort(): Promise<number> {
+export async function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const s = createServer();
     s.listen(0, () => {

@@ -4,9 +4,9 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./src/app.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/app.ts"
   },
   "scripts": {
     "test": "vitest run --passWithNoTests",
