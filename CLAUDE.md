@@ -344,8 +344,11 @@ Rules: never claim something works without a link, a test result or command outp
 
 ### Current state
 - Milestone: **M1 done** (forge green). **M2 gate PASS on deployed contracts** (2026-11-06): verified EthFalconVerifier on 1874 returns true for off-chain Falcon sigs over Leash digests (`contracts/test/vectors/falcon_leash.json`), false for wrong digest, ~1.58M gas. **M3 in progress**: sdk + relayer + facilitator + merchant done and green on anvil e2e (30 paid calls → 3 claims); next = run it on Whitechain with real USDT.
-- Next action: owner CLI (real Falcon key `keys/owner.json`) → create demo vault on 1874 via relay → human sends USDT to the vault address → run facilitator+merchant against 1874 → first real `Claimed` tx.
-- Blockers: USDT (human getting it from Whitechain; fallback = swap WBT→USDT, see docs/research/whitechain-hedera.md).
+- **M4**: attestor + approvals + denied path DONE with `WORLD_MODE=mock` (MOCKED World issuer); real World IdP code path written (device grant) but untested until the portal app exists (HUMAN). **M5**: owner app (5 screens) builds; **gate h6 Falcon WASM: PASS** (in-browser keys; localhost Python signer kept as alt).
+- Live on 1874: vault `0x3B77877490A4C2A89e55b94e969cae1fA190c392` (CLI bootstrap, World MOCKED) created `0x82290b8e…d298`; Scenario B approve → cap 5→8 `0x36e2e143…c1ab`; deny path → no tx (approval a4a047c2…); Scenario C attacker open → 422 MerchantNotAllowed (simulated, never sent).
+- Next action: human sends USDT to the vault → `pnpm agent a` → first `Claimed` tx. Meanwhile: README/feedback docs, status script, Hedera.
+- Blockers (HUMAN): (1) USDT for the vault; (2) World IdP sandbox app registration (client id/secret) + a sandbox World ID or the hackathon's mocked-proof environment; (3) Hedera testnet account (portal.hedera.com) for M7.
+- Run locally: `pnpm facilitator` · `pnpm merchant` · `pnpm owner-signer` · `WORLD_MODE=mock pnpm web` · `pnpm agent a|b|c` · `pnpm owner status|approvals|approve|deny|revoke-session`.
 - Keys live in `.env` (gitignored, generated 2026-11-05). Falcon keys in `keys/` (gitignored). Python signer venv: `tools/owner-signer/.venv` (numpy, pycryptodome, eth_abi, polyntt @ ZKNoxHQ/NTT 3ac5f5d).
 - Research notes: `docs/research/x402.md`, `docs/research/world-idp.md` — read these before touching x402 or World code.
 
@@ -412,6 +415,8 @@ WHITECHAIN_RPC, RELAYER_PK_WHITECHAIN, ATTESTOR_PK, WORLD_CLIENT_ID, WORLD_CLIEN
 | forge (local, real Falcon): EthFalconVerifier.verify 1,519,451 in-EVM · applyChange loosening 1,577,791 | — | — |
 | Deploy (real): ZKNOX_ethfalcon 1,557,504 · EthFalconVerifier 411,680 · LeashFactory(+impl) 5,443,894 | 0.037 WBT total | — |
 | EthFalconVerifier.verify on deployed contract (eth_estimateGas, whole tx) | 1,580,346–1,581,200 | — |
+| createVault (real Falcon, 4 init ops) — tx 0x82290b8e… | 1,898,270 gas | — |
+| applyChange loosening (real Falcon + WorldApproval) — tx 0x36e2e143… | 1,651,264 gas | — |
 
 ### Open questions for the human
 - Relayer + deployer key: create one, fund with WBT (faucet?), put in `.env` as `RELAYER_PK_WHITECHAIN`. Then M0 can record the balance and do a real ETHFALCON deploy.
