@@ -3,6 +3,7 @@
  *   MERCHANT_PORT=4022, MERCHANT_PUBLIC_URL, FACILITATOR_URL=http://localhost:4021, CHAIN=whitechain|local
  *   MERCHANT_QUOTE_PK / MERCHANT_TRANSLATE_PK / MERCHANT_SUMMARIZE_PK (payTo addresses derive from these)
  */
+import { readFileSync } from "node:fs";
 import { serve } from "@hono/node-server";
 import { privateKeyToAccount } from "viem/accounts";
 import type { Address, Hex } from "viem";
@@ -19,6 +20,14 @@ const cfg: MerchantConfig = {
   publicUrl,
   network: isLocal ? "eip155:31337" : "eip155:1874",
   payTo: { quote: addr("MERCHANT_QUOTE_PK"), translate: addr("MERCHANT_TRANSLATE_PK"), summarize: addr("MERCHANT_SUMMARIZE_PK") },
+  hedera: (() => {
+    try {
+      const st = JSON.parse(readFileSync(new URL("../../../keys/hedera-demo.json", import.meta.url), "utf8"));
+      return { payTo: st.merchant.accountId as string };
+    } catch {
+      return undefined;
+    }
+  })(),
   asset: isLocal && process.env.LOCAL_TOKEN ? { asset: process.env.LOCAL_TOKEN as Address, decimals: 6, symbol: "USDT" } : undefined,
 };
 

@@ -50,6 +50,25 @@ const ctx = createContext({
   },
 });
 
+// Hedera: x402 `exact` on hedera:testnet through this facilitator (we pay the HBAR fee), with the
+// Leash mandate enforced here (off-chain) and every decision mirrored to the HCS audit topic.
+if (process.env.HEDERA_OPERATOR_KEY && !process.env.HEDERA_OPERATOR_KEY.includes("placeholder")) {
+  const h = await import("@leash/hedera");
+  const state = h.loadHederaState();
+  if (state) {
+    const store = h.memoryMandateStore([h.mandateFromState(state)]);
+    ctx.x402.register(
+      h.HEDERA_TESTNET,
+      new h.LeashHederaFacilitator(process.env.HEDERA_OPERATOR_ID!, process.env.HEDERA_OPERATOR_KEY, store, (e) =>
+        void ctx.audit.publish({ kind: e.kind, chainId: 296, tx: e.transaction, amount: e.amount, data: { payer: e.payer, payTo: e.payTo, reason: e.reason, network: "hedera:testnet" } }),
+      ),
+    );
+    console.log(`[facilitator] hedera:testnet exact via fee payer ${process.env.HEDERA_OPERATOR_ID}; mandate for ${state.agent.accountId}`);
+  } else {
+    console.log("[facilitator] Hedera keys present but no keys/hedera-demo.json — run pnpm hedera:bootstrap");
+  }
+}
+
 const app = createApp(ctx);
 serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, () => {
   console.log(`[facilitator] ${ctx.network} on ${publicUrl} | relayer ${ctx.relayer.address} | factory ${deployment.factory}`);

@@ -114,6 +114,7 @@ Money on chain: vault 17.17 USDT left; merchants received 4.75 USDT; fees 0.010 
 | 20 | Stray `components/` dir at repo root | Agent wrote a file to the wrong path | Removed. Always use absolute paths under `apps/web/` |
 | 21 | LEASH_STATUS claimed "31 commits" | Agent guessed instead of counting | Corrected to the real count; honesty rule: count, don't guess |
 | 22 | Known, unfixed: Hedera HTS association from clones | `0x167.associateToken` from a delegatecall (EIP-1167 clone initializer) is rejected by Hedera (source-read) | Before any Hedera vault deploy: switch to `IHRC719(token).associate()`; contracts may auto-associate anyway |
+| 24 | `pnpm -s setup` ran pnpm's **built-in** `setup` command (not our script) and appended a PNPM_HOME block to the human's `~/.zshrc` | `setup` is a reserved pnpm command name | Renamed our script to `bootstrap` (`pnpm hedera:bootstrap`). Removing the block from ~/.zshrc was denied by the permission system, so the human was told to delete lines 38–44 if they want. **Lesson: never name a package script after a pnpm built-in (setup, init, add, install…)** |
 | 23 | Agent session expiry | The CLI vault's session was created with a 24 h TTL (expires 2026-11-07 00:08 IST) | Demo: onboard a fresh vault in the web app with `AGENT_SESSION=agent-session-demo` |
 
 ---
@@ -170,6 +171,17 @@ Money on chain: vault 17.17 USDT left; merchants received 4.75 USDT; fees 0.010 
 | CLI vault | `0x3B77877490A4C2A89e55b94e969cae1fA190c392` |
 | USDT (prize token) | `0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7` |
 | Uniswap (testnet): WWBT / SwapRouter02 / WWBT-USDT pool | `0x4200…0006` / `0xe208cC685cD95D56E8ec6DEC9816476567fc6962` / `0x5645101Ca8d2F7BaBC27b10359555767a1BdF999` |
+
+### Hedera testnet (296) — created 2026-11-06 ~01:40 IST by `pnpm hedera:bootstrap`
+| Role | Id |
+|---|---|
+| Operator / facilitator fee payer (human's portal account, ECDSA) | `0.0.11328871` (EVM `0xf7b0f9f07f520b42bcab2d40dab6f15ef22bf77d`) |
+| HCS audit topic (submit key = operator) | `0.0.11329480` https://hashscan.io/testnet/topic/0.0.11329480 |
+| Agent (payer) account, 0 HBAR, key in `keys/hedera-demo.json` | `0.0.11329481` |
+| Merchant (payTo) account, key in `keys/hedera-demo.json` | `0.0.11329482` |
+| USDC (HTS) | `0.0.429274` = `0x…068cda`, 6 dp |
+
+Hedera mandate (facilitator-enforced, off-chain): ≤0.10 USDC per payment, ≤2.00 USDC/day, merchant allowlist, payments above 0.50 USDC need a human approval (refused otherwise). Endpoints: `/hedera/quote` $0.01, `/hedera/translate` $0.02, `/hedera/report` $0.60 (deliberately above the threshold). Run: `pnpm agent h`. Fund the agent: `pnpm --filter @leash/hedera run bootstrap -- --fund 5000000` once the operator has USDC.
 
 ### Key transactions (Whitechain 1874)
 - Faucet → relayer `0x756972958c9f60aa8191a81cee37c08b5c43e42df72b0c8a164236932ef342c6`

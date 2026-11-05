@@ -4,6 +4,7 @@ import { paymentMiddleware, x402ResourceServer } from "@x402/hono";
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import type { Address } from "viem";
 import { KNOWN_ASSETS, LEASH_SCHEME, LeashSchemeServer, registerAsset } from "@leash/sdk";
+import { ExactHederaScheme as ExactHederaServer } from "@x402/hedera/exact/server";
 
 export type MerchantConfig = {
   facilitatorUrl: string;
@@ -12,7 +13,19 @@ export type MerchantConfig = {
   payTo: { quote: Address; translate: Address; summarize: Address };
   /** override the network's default stablecoin (local devnets) */
   asset?: { asset: Address; decimals: number; symbol: string };
+  /** optional Hedera endpoints: x402 `exact`, settled in HTS USDC on hedera:testnet through our facilitator */
+  hedera?: { payTo: string };
 };
+
+/** Hedera-paid endpoints. /hedera/report is deliberately above the agent's approval threshold. */
+export function hederaCatalog(cfg: MerchantConfig) {
+  if (!cfg.hedera) return [];
+  return [
+    { path: "/hedera/quote", method: "GET", price: "$0.01", payTo: cfg.hedera.payTo, description: "FX quote, paid in USDC on Hedera" },
+    { path: "/hedera/translate", method: "GET", price: "$0.02", payTo: cfg.hedera.payTo, description: "Translate a phrase, paid in USDC on Hedera" },
+    { path: "/hedera/report", method: "GET", price: "$0.60", payTo: cfg.hedera.payTo, description: "Premium market report (above the agent's auto-approve threshold)" },
+  ] as const;
+}
 
 /** The three paid endpoints (prices in USD-pegged stablecoin). */
 export function catalog(cfg: MerchantConfig) {
@@ -37,6 +50,8 @@ export function createMerchantApp(cfg: MerchantConfig) {
     cfg.network,
     new LeashSchemeServer(),
   );
+  const hItems = hederaCatalog(cfg);
+  if (hItems.length) resourceServer.register("hedera:testnet", new ExactHederaServer());
   const routes = Object.fromEntries(
     items.map((i) => [
       `${i.method} ${i.path}`,
@@ -48,6 +63,14 @@ export function createMerchantApp(cfg: MerchantConfig) {
       },
     ]),
   );
+  for (const h of hItems) {
+    (routes as Record<string, unknown>)[`${h.method} ${h.path}`] = {
+      accepts: { scheme: "exact", price: h.price, network: "hedera:testnet", payTo: h.payTo, maxTimeoutSeconds: 120 },
+      description: h.description,
+      mimeType: "application/json",
+      serviceName: "Leash demo merchant (Hedera)",
+    };
+  }
 
   const app = new Hono();
   app.use(
@@ -99,7 +122,15 @@ export function createMerchantApp(cfg: MerchantConfig) {
     return c.json({ summary: sentences[0]?.slice(0, 200) ?? "", sentences: sentences.length, words });
   });
 
-  return { app, items };
+  app.get("/hedera/quote", (c) => c.json({ pair: (c.req.query("pair") ?? "USD/INR").toUpperCase(), rate: RATES[(c.req.query("pair") ?? "USD/INR").toUpperCase()] ?? 1, settledOn: "hedera:testnet", at: new Date().toISOString() }));
+  app.get("/hedera/translate", (c) => {
+    const text = (c.req.query("text") ?? "hello").toLowerCase();
+    const to = c.req.query("to") ?? "hi";
+    return c.json({ text, to, translation: text.split(/\s+/).map((w) => DICT[to]?.[w] ?? w).join(" "), settledOn: "hedera:testnet" });
+  });
+  app.get("/hedera/report", (c) => c.json({ report: "USD/INR steady; agent payments volume up 12% WoW (demo data)", settledOn: "hedera:testnet" }));
+
+  return { app, items: [...items, ...hItems] };
 }
 
 /** Publish our resources to the facilitator's discovery list so agents can find them. */
@@ -108,7 +139,8 @@ export async function registerWithFacilitator(cfg: MerchantConfig, f: typeof fet
   const kind = supported.kinds.find((k) => k.scheme === LEASH_SCHEME && k.network === cfg.network);
   if (!kind) throw new Error(`facilitator does not support ${LEASH_SCHEME} on ${cfg.network}`);
   const server = new LeashSchemeServer();
-  const resources = await Promise.all(
+  type DiscoveryItem = { resource: { url: string; description: string; mimeType: string }; method: string; accepts: Record<string, unknown>[] };
+  const resources: DiscoveryItem[] = await Promise.all(
     catalog(cfg).map(async (i) => {
       const { amount, asset } = await server.parsePrice(i.price, cfg.network);
       return {
@@ -120,6 +152,18 @@ export async function registerWithFacilitator(cfg: MerchantConfig, f: typeof fet
       };
     }),
   );
+  const hKind = supported.kinds.find((k) => k.scheme === "exact" && k.network === "hedera:testnet");
+  if (cfg.hedera && hKind) {
+    const hs = new ExactHederaServer();
+    for (const i of hederaCatalog(cfg)) {
+      const { amount, asset } = await hs.parsePrice(i.price, "hedera:testnet");
+      resources.push({
+        resource: { url: `${cfg.publicUrl}${i.path}`, description: i.description, mimeType: "application/json" },
+        method: i.method,
+        accepts: [{ scheme: "exact", network: "hedera:testnet", asset, amount, payTo: i.payTo, maxTimeoutSeconds: 120, extra: hKind.extra ?? {} }],
+      });
+    }
+  }
   const res = await f(`${cfg.facilitatorUrl}/discovery/register`, {
     method: "POST",
     headers: { "content-type": "application/json" },

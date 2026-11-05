@@ -224,15 +224,62 @@ async function scenarioC() {
   void deployment;
 }
 
+// ------------------------------------------------------------------------------------------- Scenario H (Hedera)
+
+async function scenarioH() {
+  const calls = Number(flag("calls", "3"));
+  const { loadHederaState, hashscan } = await import("@leash/hedera");
+  const { ExactHederaScheme } = await import("@x402/hedera/exact/client");
+  const { createClientHederaSigner, PrivateKey } = await import("@x402/hedera");
+  const { x402Client } = await import("@x402/core/client");
+  const { wrapFetchWithPayment } = await import("@x402/fetch");
+  const st = loadHederaState();
+  if (!st) throw new Error("run pnpm hedera:bootstrap first");
+  log(`${c.bold}Scenario H — the agent pays an x402 API on Hedera, settled in HTS USDC, with no human approving${c.reset}`);
+  const resources = (await discover()).filter((r) => (r.accepts[0] as { network?: string }).network === "hedera:testnet");
+  log(`${c.dim}discovered ${resources.length} Hedera endpoints via ${FACILITATOR_URL}/discovery/resources${c.reset}`);
+  for (const r of resources) log(`  ${r.resource}  ${formatUnits6(r.accepts[0].amount)} USDC`);
+
+  const signer = createClientHederaSigner(st.agent.accountId, PrivateKey.fromStringECDSA(st.agent.privateKey), { network: "hedera:testnet" });
+  const client = new x402Client().register("hedera:testnet", new ExactHederaScheme(signer));
+  client.setSpendControls({ allowedAssets: [{ network: "hedera:testnet", asset: "0.0.429274", maxAmountPerPayment: "1000000" }] });
+  const paid = wrapFetchWithPayment(fetch, client);
+  const hbar = async () => {
+    const r = await fetch(`https://testnet.mirrornode.hedera.com/api/v1/accounts/${st.agent.accountId}`);
+    return Number((await r.json()).balance.balance) / 1e8;
+  };
+  log(`${c.dim}agent account ${st.agent.accountId} · HBAR ${await hbar()} (fees are paid by our facilitator) · mandate: ≤0.10/payment, ≤2.00/day, human approval above 0.50${c.reset}`);
+
+  const byPath = Object.fromEntries(resources.map((r) => [new URL(r.resource).pathname, r]));
+  for (let i = 0; i < calls; i++) {
+    const r = i % 2 === 0 ? byPath["/hedera/quote"] : byPath["/hedera/translate"];
+    const res = await paid(r.resource);
+    if (res.status !== 200) {
+      log(`${c.red}  ✘ refused: ${reasonOf(res)}${c.reset}`);
+      continue;
+    }
+    const pr = decodePaymentResponseHeader(res.headers.get("PAYMENT-RESPONSE")!);
+    log(`${c.green}  ✓ paid ${formatUnits6(r.accepts[0].amount)} USDC → settled on Hedera tx ${pr.transaction}  ${hashscan.tx(pr.transaction)}${c.reset}`);
+  }
+
+  const big = byPath["/hedera/report"];
+  if (big) {
+    const res = await paid(big.resource);
+    log(res.status === 200 ? `${c.red}  !! premium report was paid without approval${c.reset}` : `${c.yellow}  ✋ ${formatUnits6(big.accepts[0].amount)} USDC report refused: ${reasonOf(res)} — above the auto-approve threshold, needs the owner${c.reset}`);
+  }
+  log(`${c.bold}audit log (HCS topic): ${hashscan.topic(st.topicId)}${c.reset}`);
+  log(`${c.dim}agent HBAR after: ${await hbar()} (unchanged — the agent never paid a fee)${c.reset}`);
+}
+
 async function printSession() {
   const s = agentSession();
   log(`agent session key: ${s.address}  (keys/${process.env.AGENT_SESSION ?? "agent-session"}.json, never funded)`);
   log(`WBT balance: ${formatUnits(await publicClient.getBalance({ address: s.address }), 18)}`);
 }
 
-const main = { a: scenarioA, b: scenarioB, c: scenarioC, stats: printStats, session: printSession }[scenario as "a"];
+const main = { a: scenarioA, b: scenarioB, c: scenarioC, h: scenarioH, stats: printStats, session: printSession }[scenario as "a"];
 if (!main) {
-  console.log("usage: agent a [--calls N] | b [--cap 500] | c | stats | session   (env: AGENT_VAULT, AGENT_SESSION)");
+  console.log("usage: agent a [--calls N] | b [--cap 500] | c | h [--calls N] | stats | session   (env: AGENT_VAULT, AGENT_SESSION)");
   process.exit(1);
 }
 main().catch((e) => {

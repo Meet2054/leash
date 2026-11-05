@@ -15,8 +15,10 @@
   },
   "dependencies": {
     "@hono/node-server": "^2.1.6",
+    "@leash/hedera": "workspace:*",
     "@leash/sdk": "workspace:*",
     "@x402/core": "2.30.0",
+    "@x402/hedera": "2.30.0",
     "@x402/hono": "2.30.0",
     "hono": "^4.13.16",
     "tsx": "^4.23.15",
