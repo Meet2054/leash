@@ -24,7 +24,9 @@ AI agents now spend money on their own. Their spending limits are usually enforc
 | LeashVault implementation (verified) | [0x3B0E…B306](https://explorer.testnet.whitechain.io/address/0x3B0E1F9450203a542f7DC644e58F5CDf13cDB306) |
 | Vault created, Falcon signature checked onchain (1.90M gas) | [0x8229…d298](https://explorer.testnet.whitechain.io/tx/0x82290b8eddfaba7b3ed963520edb0c0bbab77fe3eeb1297fb4a34dd27853d298) |
 | Agent's cap raised after World check + Falcon signature (1.65M gas) | [0x36e2…c1ab](https://explorer.testnet.whitechain.io/tx/0x36e2e14380f9fb673061803a10f3cc813f66cb85b5fb6b1b1e1a0ac577b6c1ab) |
-| USDT claim settling many x402 payments | _pending: see LEASH_STATUS.md_ |
+| First USDT claim (one tx settling many x402 payments) | [0x1ab1…4518](https://explorer.testnet.whitechain.io/tx/0x1ab1d35e4951ed44954ee461eab6fd20568f4f50d530e3869ff126e474a18514) |
+| Scenario A totals | **300 paid requests → 10 claim txs** (up to 100 payments per claim, ~101k gas and 228 B calldata each); merchants received 4.75 USDT, relayer fees 0.010 USDT; agent signed 0 transactions and holds 0 WBT |
+| Vault funding | 21.93 USDT obtained by swapping 0.3 faucet WBT on Whitechain testnet's Uniswap V3 WWBT/USDT pool, recipient = the vault ([0x9eab…cb9](https://explorer.testnet.whitechain.io/tx/0x9eab9b3e9c09448a1cdf675640c5e02da0091360289024fb8944ce556e9eacb9)) |
 
 ## Architecture
 ```mermaid

@@ -1,4 +1,4 @@
-# LEASH_STATUS — 2026-11-06T00:27+05:30 IST — milestone M3 (in progress; blocked on USDT for the first claim)
+# LEASH_STATUS — 2026-11-06T00:45+05:30 IST — milestone M3 (done)
 
 ## 1. Summary (3 lines max)
 Contracts (vault, factory, ETHFALCON adapter) are deployed and verified on Whitechain 1874. Real Falcon signatures are verified onchain in live txs (vault creation + a World-approved cap raise). The x402 `leash-batch` stack (SDK, relayer, facilitator, merchant, agent) runs green end to end on anvil and live on 1874, waiting for USDT. The owner app + World attestor work with a **MOCKED** World issuer. In-browser Falcon (WASM) passes the gate.
@@ -22,7 +22,8 @@ Blocked on HUMAN: USDT into the vault, World IdP portal credentials, Hedera acco
 | Hedera 296 | — | not deployed | — | — |
 
 ## 4. Live proof (most recent)
-- Whitechain USDT claim tx: **none yet** (vault holds 0 USDT; waiting for the human to fund it) | — | —
+- Whitechain USDT claim tx: https://explorer.testnet.whitechain.io/tx/0x1ab1d35e4951ed44954ee461eab6fd20568f4f50d530e3869ff126e474a18514 | first batch | Scenario A total: 300 paid calls → 10 claims (max 100 vouchers/claim), merchants +4.75 USDT, fees 0.010 USDT
+- Vault funding: 0.3 faucet WBT swapped → 21.93 USDT straight into the vault (https://explorer.testnet.whitechain.io/tx/0x9eab9b3e9c09448a1cdf675640c5e02da0091360289024fb8944ce556e9eacb9)
 - Vault creation with an onchain Falcon check: https://explorer.testnet.whitechain.io/tx/0x82290b8eddfaba7b3ed963520edb0c0bbab77fe3eeb1297fb4a34dd27853d298 (World approval **MOCKED**: CLI bootstrap, attestor signed without a World check)
 - Mandate loosening (approved) tx: https://explorer.testnet.whitechain.io/tx/0x36e2e14380f9fb673061803a10f3cc813f66cb85b5fb6b1b1e1a0ac577b6c1ab (cap 5 → 8 USDT; real Falcon signature; World check **MOCKED** issuer, validated by the same backend code path)
 - Denied approval attempt id + reason: `a4a047c2-47bd-4b64-89bf-c707afd930ec` — "denied by the owner" → no attestation, no tx, cap unchanged (5 USDT)
@@ -35,13 +36,13 @@ Blocked on HUMAN: USDT into the vault, World IdP portal credentials, Hedera acco
 - Gas: openChannel 164,512 · claim ≤ 93,360 · applyChange (real Falcon, loosening) 1,651,264 onchain · createVault (real Falcon) 1,898,270 onchain · EthFalconVerifier.verify ~1.52M in-EVM
 
 ## 6. Metrics
-- vouchers served 0 / claim txs 0 / onchain calldata 0 B / reduction factor n/a (live run pending USDT). Local anvil e2e: 30 vouchers → 3 claims (10×).
-- relayer WBT left 1.9452 / est. ops remaining ≈ 213 (at the current mix of Falcon-heavy ops; claims are ~17× cheaper)
+- vouchers served 300 / claim txs 10 (30× fewer txs) / avg claim calldata 228 B, ~101k gas / signature bytes 261× less than ML-DSA-per-payment at this small scale (PQ owner actions dominate; projection at scale ≈ 876×)
+- relayer WBT left 1.634 (after 0.3 WBT swap + ops)
 
 ## 7. Prize checklists (copy §3 with current ticks)
 **Whitechain**
 - [x] Contracts deployed on 1874 and verified on Blockscout
-- [ ] ≥1 payment in USDT `0xcedf…55a7` settled in the main flow (waiting for USDT)
+- [x] ≥1 payment in USDT `0xcedf…55a7` settled in the main flow (10 claims, 300 payments)
 - [ ] README line on why onchain stablecoin settlement on Whitechain
 - [x] Payer (agent) never holds WBT / seed phrase / picks a chain (agent WBT balance 0; demo shown in `pnpm agent a` output)
 - [ ] README: who pays gas, how the relayer gets WBT, what stops draining (implemented: simulate-before-send, budgets, rate limits, allowlist, auto-pause; write-up pending)
