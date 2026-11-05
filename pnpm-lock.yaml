@@ -92,6 +92,9 @@ importers:
       '@x402/core':
         specifier: 2.30.0
         version: 2.30.0
+      '@x402/fetch':
+        specifier: 2.30.0
+        version: 2.30.0
       viem:
         specifier: ^2.57.16
         version: 2.57.16(typescript@5.9.3)(zod@4.6.7)
