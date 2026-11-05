@@ -31,3 +31,5 @@ __pycache__/
 
 .DS_Store
 *.log
+.next/
+next-env.d.ts

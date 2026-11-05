@@ -13,7 +13,10 @@
     "facilitator": "pnpm --filter @leash/facilitator start",
     "merchant": "pnpm --filter @leash/merchant start",
     "owner": "pnpm --filter @leash/agent owner",
-    "agent": "pnpm --filter @leash/agent agent"
+    "agent": "pnpm --filter @leash/agent agent",
+    "web": "pnpm --filter @leash/web dev",
+    "owner-signer": "tools/owner-signer/.venv/bin/python tools/owner-signer/falcon_signer.py serve --key keys/owner.json --port 8787",
+    "build:falcon-wasm": "bash tools/falcon-wasm/build.sh"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
