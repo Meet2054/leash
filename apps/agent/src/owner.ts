@@ -34,6 +34,7 @@ import { ensureOwnerKey, falconSign } from "./lib/falcon.js";
 import {
   CHAIN_ID,
   FACILITATOR_URL,
+  INBOX_URL,
   agentSession,
   deployment,
   loadVault,
@@ -156,8 +157,72 @@ async function cmdStatus() {
   console.log(`  agent WBT balance: ${formatUnits(await publicClient.getBalance({ address: s.address }), 18)} (never funded)`);
 }
 
+// ------------------------------------------------------------------ scripted owner decisions (same API as the phone UI)
+
+type ApprovalView = { id: string; status: string; description: string; reason: string; source: string };
+type AttemptView = { status: string; reason: string | null; verificationUriComplete: string | null; userCode: string | null; mode: string; changeHash: Hex; change: { action: number; data: Hex; nonce: string; deadline: string } | null; vault: Address };
+
+async function web<T>(path: string, body?: unknown): Promise<T> {
+  const r = await fetch(`${INBOX_URL}${path}`, body === undefined ? {} : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const t = await r.text();
+  if (!r.ok) throw new Error(`${path} → ${r.status}: ${t}`);
+  return JSON.parse(t) as T;
+}
+
+async function latestPending(): Promise<ApprovalView> {
+  const list = await web<ApprovalView[]>(`/api/approvals?vault=${loadVault().vault}`);
+  const p = list.find((a) => a.status === "PENDING");
+  if (!p) throw new Error("no pending approval");
+  return p;
+}
+
+async function cmdApprovals() {
+  for (const a of await web<ApprovalView[]>(`/api/approvals?vault=${loadVault().vault}`)) console.log(`${a.id}  ${a.status.padEnd(9)} ${a.source.padEnd(5)} ${a.description}  — “${a.reason}”`);
+}
+
+async function cmdDeny(id?: string) {
+  const a = id ? { id } : await latestPending();
+  const r = await web<{ status: string }>(`/api/approvals/${a.id}/deny`, {});
+  console.log(`✋ ${a.id} → ${r.status} (nothing signed, nothing onchain)`);
+}
+
+async function cmdApprove(id?: string) {
+  const a = id ? { id } : await latestPending();
+  const v = loadVault();
+  const k = ensureOwnerKey();
+  const s = await web<{ attemptId: string; mode: string; verificationUriComplete: string; userCode: string }>(`/api/approvals/${a.id}/start`, {});
+  if (s.mode === "mock") {
+    console.log("  ⚠ World check MOCKED (WORLD_MODE=mock): approving on the local mock issuer");
+    await web(`/api/world/mock/${s.attemptId}`, { decision: process.env.WORLD_MOCK_DECISION ?? "approve" });
+  } else {
+    console.log(`  → verify with World ID: ${s.verificationUriComplete}  (code ${s.userCode})`);
+  }
+  let at: AttemptView;
+  for (;;) {
+    at = await web<AttemptView>(`/api/world/attempts/${s.attemptId}`);
+    if (at.status !== "PENDING") break;
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  if (at.status !== "APPROVED" || !at.change) {
+    console.log(`  ✕ World check ${at.status}: ${at.reason} — nothing signed`);
+    return;
+  }
+  const change = { action: at.change.action, data: at.change.data, nonce: BigInt(at.change.nonce), deadline: BigInt(at.change.deadline) };
+  const digest = mandateChangeDigest(CHAIN_ID, v.vault, change);
+  if (digest.toLowerCase() !== at.changeHash.toLowerCase()) throw new Error("change hash mismatch — refusing to sign");
+  console.log("  ✓ World check passed; signing the change with the owner's ETHFALCON key…");
+  const r = await web<{ txHash: Hex; gasUsed: string }>(`/api/approvals/${a.id}/submit`, { pqPubKey: k.pubKey, pqSig: falconSign(digest) });
+  console.log(`✔ approved + applied onchain (gas ${r.gasUsed}): ${tx(r.txHash)}`);
+}
+
 const main = async () => {
   switch (cmd) {
+    case "approvals":
+      return cmdApprovals();
+    case "deny":
+      return cmdDeny(args[0]);
+    case "approve":
+      return cmdApprove(args[0]);
     case "init":
       return cmdInit();
     case "address":

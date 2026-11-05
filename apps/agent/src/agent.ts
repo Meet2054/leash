@@ -6,7 +6,7 @@
  *   agent c                      Scenario C: leaked session key is bounded; owner revokes (PQ-only)
  */
 import { decodePaymentRequiredHeader, decodePaymentResponseHeader } from "@x402/core/http";
-import { encodeFunctionData, formatUnits, type Address, type Hex } from "viem";
+import { decodeErrorResult, encodeFunctionData, formatUnits, type Address, type Hex } from "viem";
 import {
   EXPLORERS,
   encode,
@@ -167,8 +167,14 @@ async function scenarioB() {
     await publicClient.call({ account: session.address, to: vault, data });
     log(`${c.red}  !! unexpected: applyChange did not revert${c.reset}`);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    log(`${c.green}  ✔ (1) applyChange with the session key → reverts onchain: ${/WrongPqKey|0x[0-9a-f]{8}/.exec(msg)?.[0] ?? "reverted"} — only the owner's post-quantum key is root${c.reset}`);
+    const raw = /0x[0-9a-fA-F]{8,}/.exec(e instanceof Error ? e.message : String(e))?.[0];
+    let name = "reverted";
+    try {
+      if (raw) name = decodeErrorResult({ abi: leashVaultAbi, data: raw as Hex }).errorName;
+    } catch {
+      name = raw ?? name;
+    }
+    log(`${c.green}  ✔ (1) applyChange with the session key → reverts onchain: ${name} — only the owner's post-quantum key is root${c.reset}`);
   }
 
   // (2) the agent can only ASK — the owner must approve with World ID + their Falcon key
