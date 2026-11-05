@@ -2,8 +2,8 @@ import type { Address, Hex } from "viem";
 import type { PaymentRequirements, SchemeNetworkClient } from "@x402/core/types";
 import { x402Client } from "@x402/core/client";
 import { wrapFetchWithPayment } from "@x402/fetch";
-import { channelIdOf } from "./eip712.js";
-import { signOpenChannel, signVoucher, type LeashSession } from "./session.js";
+import { channelIdOf } from "./eip712";
+import { signOpenChannel, signVoucher, type LeashSession } from "./session";
 import {
   KNOWN_ASSETS,
   LEASH_SCHEME,
@@ -13,7 +13,7 @@ import {
   type LeashPayload,
   type OpenChannelRequest,
   type OpenChannelResponse,
-} from "./scheme.js";
+} from "./scheme";
 
 export type LeashClientEvent =
   | { type: "channel_opened"; merchant: Address; channelId: Hex; locked: bigint; txHash: Hex; explorerUrl: string }

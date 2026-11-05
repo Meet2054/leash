@@ -1,5 +1,5 @@
 import type { AssetAmount, Network, PaymentRequirements, Price, SchemeNetworkServer, SupportedKind } from "@x402/core/types";
-import { KNOWN_ASSETS, LEASH_SCHEME } from "./scheme.js";
+import { KNOWN_ASSETS, LEASH_SCHEME } from "./scheme";
 
 /**
  * x402 resource-server side of `leash-batch`: turns "$0.01" into atomic USDT and copies the facilitator's

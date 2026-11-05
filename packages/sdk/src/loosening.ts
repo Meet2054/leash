@@ -1,6 +1,6 @@
 import { keccak256, toBytes, type Address, type Hex } from "viem";
-import type { LeashSession } from "./session.js";
-import type { Op } from "./actions.js";
+import type { LeashSession } from "./session";
+import type { Op } from "./actions";
 
 /**
  * An agent may ASK its owner to loosen the mandate (e.g. raise its cap). It can never approve:

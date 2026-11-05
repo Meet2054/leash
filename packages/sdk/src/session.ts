@@ -1,6 +1,6 @@
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import type { Address, Hex } from "viem";
-import { leashDomain, leashTypes, type OpenChannelMsg, type VoucherMsg } from "./eip712.js";
+import { leashDomain, leashTypes, type OpenChannelMsg, type VoucherMsg } from "./eip712";
 
 /**
  * An agent session key: short-lived ECDSA key whose worst case is capped by the vault mandate.
