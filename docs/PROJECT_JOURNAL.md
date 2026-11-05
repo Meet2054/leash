@@ -115,6 +115,8 @@ Money on chain: vault 17.17 USDT left; merchants received 4.75 USDT; fees 0.010 
 | 21 | LEASH_STATUS claimed "31 commits" | Agent guessed instead of counting | Corrected to the real count; honesty rule: count, don't guess |
 | 22 | Known, unfixed: Hedera HTS association from clones | `0x167.associateToken` from a delegatecall (EIP-1167 clone initializer) is rejected by Hedera (source-read) | Before any Hedera vault deploy: switch to `IHRC719(token).associate()`; contracts may auto-associate anyway |
 | 24 | `pnpm -s setup` ran pnpm's **built-in** `setup` command (not our script) and appended a PNPM_HOME block to the human's `~/.zshrc` | `setup` is a reserved pnpm command name | Renamed our script to `bootstrap` (`pnpm hedera:bootstrap`). Removing the block from ~/.zshrc was denied by the permission system, so the human was told to delete lines 38–44 if they want. **Lesson: never name a package script after a pnpm built-in (setup, init, add, install…)** |
+| 25 | Circle faucet "Tokens sent" but no USDC on Hedera (twice) | The faucet network was set to **Arc** (Circle's own testnet; the human's link was explorer.testnet.arc.io), not Hedera Testnet | Re-request with Network = **Hedera Testnet**, Send to = `0.0.11329481` (agent). Always check the network dropdown |
+| 26 | Human rotated the Hedera operator credentials | The HCS topic only accepts its submit key (the old operator) | `pnpm hedera:bootstrap -- --new-topic` created topic `0.0.11329753` under the new operator; restarted the facilitator + merchant so the fee payer is the new account. Agent/merchant accounts have their own keys, so they're unaffected |
 | 23 | Agent session expiry | The CLI vault's session was created with a 24 h TTL (expires 2026-11-07 00:08 IST) | Demo: onboard a fresh vault in the web app with `AGENT_SESSION=agent-session-demo` |
 
 ---
@@ -175,8 +177,10 @@ Money on chain: vault 17.17 USDT left; merchants received 4.75 USDT; fees 0.010 
 ### Hedera testnet (296) — created 2026-11-06 ~01:40 IST by `pnpm hedera:bootstrap`
 | Role | Id |
 |---|---|
-| Operator / facilitator fee payer (human's portal account, ECDSA) | `0.0.11328871` (EVM `0xf7b0f9f07f520b42bcab2d40dab6f15ef22bf77d`) |
-| HCS audit topic (submit key = operator) | `0.0.11329480` https://hashscan.io/testnet/topic/0.0.11329480 |
+| Operator / facilitator fee payer (human's portal account, ECDSA) — **current since 2026-11-06 ~02:00 IST** | `0.0.11329302` (EVM `0x2c99e3265b270120b2a08f757c23d303213998d4`) |
+| HCS audit topic (submit key = current operator) — **current** | `0.0.11329753` https://hashscan.io/testnet/topic/0.0.11329753 (genesis message #1) |
+| Retired operator (human rotated credentials; ~1,008 HBAR left, usable as backup) | `0.0.11328871` |
+| Retired topic (submit key = retired operator, can't be written by the new one) | `0.0.11329480` |
 | Agent (payer) account, 0 HBAR, key in `keys/hedera-demo.json` | `0.0.11329481` |
 | Merchant (payTo) account, key in `keys/hedera-demo.json` | `0.0.11329482` |
 | USDC (HTS) | `0.0.429274` = `0x…068cda`, 6 dp |

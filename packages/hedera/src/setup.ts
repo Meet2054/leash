@@ -43,6 +43,15 @@ function setEnv(k: string, v: string) {
 }
 
 let state = loadHederaState();
+// --new-topic: create the audit topic again under the CURRENT operator (needed after rotating operator
+// credentials: an HCS topic only accepts messages signed by its submit key)
+if (state && process.argv.includes("--new-topic")) {
+  const topicId = await createAuditTopic(opId, opKey);
+  setEnv("HCS_TOPIC_ID", topicId);
+  state = { ...state, topicId };
+  writeFileSync(HEDERA_STATE, JSON.stringify(state, null, 2), { mode: 0o600 });
+  console.log(`  ✓ new HCS audit topic ${topicId} (operator ${opId})  ${hashscan.topic(topicId)}`);
+}
 if (!state) {
   console.log("creating Hedera demo state…");
   let topicId = process.env.HCS_TOPIC_ID;
