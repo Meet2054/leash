@@ -118,7 +118,7 @@ export function createContext(cfg: FacilitatorConfig): FacilitatorContext {
     voucherExpiryMarginSec: 60,
     opensPerVaultPerDay: 200,
     cacheTtlSec: 2,
-    vouchersPerSessionPerSec: 20,
+    vouchersPerSessionPerSec: 50,
     ...cfg.engine,
   };
   const engine = new ChannelEngine(engineCfg, store, relayer, client, audit, isLeashVault);

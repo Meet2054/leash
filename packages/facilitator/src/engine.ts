@@ -122,14 +122,15 @@ export class ChannelEngine {
     return p as LeashPayload;
   }
 
-  async verify(payload: PaymentPayload, req: PaymentRequirements): Promise<VerifyResponse> {
+  /** `countRate=false` for the re-check inside settle, so one paid request costs one rate-limit token. */
+  async verify(payload: PaymentPayload, req: PaymentRequirements, countRate = true): Promise<VerifyResponse> {
     if (req.scheme !== LEASH_SCHEME || req.network !== this.cfg.network) return invalid(INVALID.wrongScheme);
     const p = this.parse(payload);
     if (!p) return invalid(INVALID.badPayload);
     const cumulative = BigInt(p.cumulativeAmount);
     const price = BigInt(req.amount);
 
-    if (!this.voucherLimiter.take(`session:${p.session.toLowerCase()}`)) return invalid(INVALID.rateLimited);
+    if (countRate && !this.voucherLimiter.take(`session:${p.session.toLowerCase()}`)) return invalid(INVALID.rateLimited);
 
     let signer: Address;
     try {
@@ -181,7 +182,7 @@ export class ChannelEngine {
     if (!p) return fail(INVALID.badPayload);
     return this.locks.run(p.channelId.toLowerCase(), async () => {
       // re-verify under the channel lock: concurrent vouchers are ordered here
-      const v = await this.verify(payload, req);
+      const v = await this.verify(payload, req, false);
       if (!v.isValid) return fail(v.invalidReason ?? "invalid", v.invalidMessage);
       this.ensureRow(p);
       this.store.tx(() => this.store.acceptVoucher(p.channelId, p.cumulativeAmount, p.voucherSig));

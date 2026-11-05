@@ -92,6 +92,11 @@ export class LeashSchemeClient implements SchemeNetworkClient {
   }
 
   /** Forget local state for a merchant's channel (e.g. after a rejected voucher) so it is re-read. */
+  /** Forget all local channel state; the next payment resumes from the facilitator's lastAccepted. */
+  resyncAll() {
+    this.channels.clear();
+  }
+
   resync(chainId: number, merchant: Address) {
     this.channels.delete(`${chainId}:${merchant.toLowerCase()}`);
   }
@@ -193,5 +198,13 @@ export function wrapFetchWithLeash(baseFetch: typeof fetch, opts: WrapOptions) {
       .filter((n) => KNOWN_ASSETS[n])
       .map((n) => ({ network: n, asset: KNOWN_ASSETS[n].asset, maxAmountPerPayment: (opts.maxAmountPerPayment ?? 1_000_000n).toString() })),
   });
-  return { fetch: wrapFetchWithPayment(baseFetch, client), scheme, client };
+  const paid = wrapFetchWithPayment(baseFetch, client);
+  // A rejected voucher means our local cumulative ran ahead of what the facilitator accepted:
+  // drop local state so the next payment resumes from the facilitator (no silent overpayment).
+  const wrapped = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const res = await paid(input, init);
+    if (res.status === 402) scheme.resyncAll();
+    return res;
+  };
+  return { fetch: wrapped as typeof fetch, scheme, client };
 }

@@ -98,7 +98,11 @@ async function scenarioA() {
   const t0 = Date.now();
   for (let i = 0; i < calls; i++) {
     const r = pick(i);
-    const res = await paid(requestFor(r, i));
+    let res = await paid(requestFor(r, i));
+    for (let retry = 0; res.status === 402 && /rate_limited/.test(reasonOf(res)) && retry < 5; retry++) {
+      await new Promise((ok) => setTimeout(ok, 1000 * (retry + 1))); // back off, then retry the same call
+      res = await paid(requestFor(r, i));
+    }
     if (res.status !== 200) {
       log(`${c.red}  ✘ call ${i + 1} refused: ${reasonOf(res)}${c.reset}`);
       break;
