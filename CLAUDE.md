@@ -373,6 +373,10 @@ Rules: never claim something works without a link, a test result or command outp
 | USDT `transfer` return | returns `true` (32-byte bool) in eth_call. Still use SafeERC20 per §6. | 2026-11-05 |
 | USDT permit / EIP-3009 (informational) | impl has `permit` (EIP-2612), `DOMAIN_SEPARATOR` (0xcdcf…2a25), `nonces`; **EIP-3009 present** (`transferWithAuthorization` v,r,s and bytes-sig variants, `receiveWithAuthorization`); no `eip712Domain()`. Design doesn't need them. | 2026-11-05 |
 | USDT test-token source | impl has `mint(address,uint256)` but no public faucet fn; owner is `0x8790832Ba493Cc16a4dBC5c961B0C4950632799c`. Source still **HUMAN** (faucet/booth). | 2026-11-05 |
+| WBT faucet | https://faucet.testnet.whitechain.io — GitHub OAuth (≥30-day account) + Turnstile captcha → 2 WBT/24h. Not scriptable → **HUMAN**. | 2026-11-05 |
+| USDT via swap (option) | Builders swap WBT→USDT on undocumented Uniswap V3: WWBT `0x4200…0006`, SwapRouter02 `0xe208cC685cD95D56E8ec6DEC9816476567fc6962`, pool `0x5645101Ca8d2F7BaBC27b10359555767a1BdF999` (~2 WBT → ~147 USDT). Details docs/research/whitechain-hedera.md | 2026-11-05 |
+| Hedera clone HTS association | **Known issue (source-read):** `0x167.associateToken` from a clone (delegatecall) is rejected → switch `_htsAssociate` to `IHRC719(token).associate()` before any Hedera EVM deploy. Contracts may auto-associate anyway (max_auto_assoc = -1 observed). | 2026-11-05 |
+| Hedera SDK | `@hiero-ledger/sdk` 2.90.1 (renamed `@hashgraph/sdk`); per-tx gas cap 15M | 2026-11-05 |
 | ERC-4337 EntryPoint v0.7 (informational) | has code (16,035 B). Also present: CREATE2 deployer `0x4e59…956C`, Multicall3 `0xcA11…CA11` | 2026-11-05 |
 | ETHFALCON verify on Whitechain | **PASS via state override** (not yet a real deployment): ZKNox `ZKNOX_ethfalcon` @ commit `43ac863` (2026-10-21), solc 0.8.25, runtime 6,985 B (< EIP-170). Vectors 0–2 from `test/ethfalcon.t.sol`: valid → `true`, tampered message → `false`. | 2026-11-05 |
 | ETHFALCON real deployment on Whitechain | **NOT DONE** — needs funded deployer key (HUMAN) | 2026-11-05 |
