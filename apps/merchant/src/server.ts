@@ -44,5 +44,5 @@ for (let i = 0; ; i++) {
 const { app, items } = createMerchantApp(cfg);
 serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, () => {
   console.log(`[merchant] ${cfg.network} on ${publicUrl} via ${facilitatorUrl}`);
-  for (const i of items) console.log(`  ${i.method} ${i.path}  ${i.price}  → ${i.payTo}`);
+  for (const i of items) console.log(`  ${i.method} ${i.path}  ${"label" in i ? i.label : i.price}  → ${i.payTo}`);
 });

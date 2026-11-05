@@ -20,8 +20,9 @@ export const HEDERA_USDC_TESTNET = "0.0.429274";
 export type HederaMandate = {
   payer: string; // agent account id
   merchants: string[]; // allowlist (payTo account ids)
-  perPaymentMax: bigint; // atomic USDC
-  dailyCap: bigint; // atomic USDC per UTC day
+  asset: string; // HTS token id, or "0.0.0" for HBAR; amounts below are in its atomic units
+  perPaymentMax: bigint;
+  dailyCap: bigint; // per UTC day
   /** payments above this need a human approval (World-gated); refused otherwise */
   approvalAbove: bigint;
   revoked?: boolean;
@@ -57,7 +58,7 @@ export function checkMandate(store: MandateStore, payer: string | undefined, req
   const m = store.get(payer);
   if (!m) return "leash_no_mandate_for_payer";
   if (m.revoked) return "leash_session_revoked";
-  if (req.asset !== HEDERA_USDC_TESTNET) return "leash_asset_not_allowed";
+  if (req.asset !== m.asset) return "leash_asset_not_allowed";
   if (!m.merchants.includes(req.payTo)) return "leash_merchant_not_allowed";
   const amount = BigInt(req.amount);
   if (amount > m.approvalAbove) return "leash_human_approval_required";

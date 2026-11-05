@@ -5,6 +5,7 @@ import { HTTPFacilitatorClient } from "@x402/core/server";
 import type { Address } from "viem";
 import { KNOWN_ASSETS, LEASH_SCHEME, LeashSchemeServer, registerAsset } from "@leash/sdk";
 import { ExactHederaScheme as ExactHederaServer } from "@x402/hedera/exact/server";
+import { formatHedera, hederaPricing } from "@leash/hedera";
 
 export type MerchantConfig = {
   facilitatorUrl: string;
@@ -20,11 +21,13 @@ export type MerchantConfig = {
 /** Hedera-paid endpoints. /hedera/report is deliberately above the agent's approval threshold. */
 export function hederaCatalog(cfg: MerchantConfig) {
   if (!cfg.hedera) return [];
+  const p = hederaPricing();
+  const price = (amount: bigint) => ({ asset: p.asset, amount: amount.toString() });
   return [
-    { path: "/hedera/quote", method: "GET", price: "$0.01", payTo: cfg.hedera.payTo, description: "FX quote, paid in USDC on Hedera" },
-    { path: "/hedera/translate", method: "GET", price: "$0.02", payTo: cfg.hedera.payTo, description: "Translate a phrase, paid in USDC on Hedera" },
-    { path: "/hedera/report", method: "GET", price: "$0.60", payTo: cfg.hedera.payTo, description: "Premium market report (above the agent's auto-approve threshold)" },
-  ] as const;
+    { path: "/hedera/quote", method: "GET", price: price(p.prices.quote), label: `${formatHedera(p.prices.quote)} ${p.symbol}`, payTo: cfg.hedera.payTo, description: `FX quote, paid in ${p.symbol} on Hedera` },
+    { path: "/hedera/translate", method: "GET", price: price(p.prices.translate), label: `${formatHedera(p.prices.translate)} ${p.symbol}`, payTo: cfg.hedera.payTo, description: `Translate a phrase, paid in ${p.symbol} on Hedera` },
+    { path: "/hedera/report", method: "GET", price: price(p.prices.report), label: `${formatHedera(p.prices.report)} ${p.symbol}`, payTo: cfg.hedera.payTo, description: "Premium market report (above the agent's auto-approve threshold)" },
+  ];
 }
 
 /** The three paid endpoints (prices in USD-pegged stablecoin). */

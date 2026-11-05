@@ -139,7 +139,18 @@ Tests: `pnpm test` (forge 71 tests + vitest).
 - **Status:** the real IdP path is implemented. The live demo so far used `WORLD_MODE=mock`, a local RS256 issuer validated by the same code path and **labelled MOCKED** everywhere. Debrief: [`WORLD_DEBRIEF.md`](WORLD_DEBRIEF.md).
 
 ### Hedera: AI Agents That Pay (x402 on Hedera)
-Planned (M7): an `exact`-scheme endpoint settling HTS USDC (`0.0.429274`) through our facilitator as fee payer, with mandate checks in the facilitator and an **HCS topic as a tamper-evident audit log**. The audit sink is already wired: [`packages/facilitator/src/audit.ts`](packages/facilitator/src/audit.ts). Status: see LEASH_STATUS.md.
+- **An x402-protected endpoint that settles on Hedera testnet through a facilitator we run.** The merchant's `/hedera/quote`, `/hedera/translate` and `/hedera/report` use the official x402 `exact` scheme on `hedera:testnet`. Our facilitator verifies each payment, co-signs it as the **fee payer** and submits it. Code: [`packages/hedera/src/facilitator.ts`](packages/hedera/src/facilitator.ts), [`apps/merchant/src/app.ts`](apps/merchant/src/app.ts).
+- **The agent finds the endpoint and pays end to end with no human approving.** `pnpm agent h` discovers the endpoints from the facilitator's `/discovery/resources`, then pays. It never pays a network fee.
+- **Settled payments (Hedera transaction IDs):**
+  - [`0.0.11329302@1793911532.195465156`](https://hashscan.io/testnet/transaction/0.0.11329302@1793911532.195465156) (0.1 HBAR)
+  - [`0.0.11329302@1793911533.673150092`](https://hashscan.io/testnet/transaction/0.0.11329302@1793911533.673150092) (0.2 HBAR)
+  - [`0.0.11329302@1793911538.419042992`](https://hashscan.io/testnet/transaction/0.0.11329302@1793911538.419042992) (0.1 HBAR)
+
+  The fee (~0.003 HBAR each) was paid by our facilitator `0.0.11329302`. The agent `0.0.11329481` paid exactly the prices.
+- **Spending controls and human approval above a threshold.** The Leash mandate is checked *before* we co-sign: a merchant allowlist, a per-payment max, a daily cap, and **payments above the threshold refused with `leash_human_approval_required`** (the 6 HBAR `/hedera/report` call is refused in the demo).
+- **HCS topic as a tamper-evident audit log.** Every facilitator decision (Whitechain channel opens and claims, mandate changes, approvals and denials, Hedera payments settled or refused) is mirrored to topic **[`0.0.11329753`](https://hashscan.io/testnet/topic/0.0.11329753)**. Code: [`packages/hedera/src/hcs.ts`](packages/hedera/src/hcs.ts), [`packages/facilitator/src/audit.ts`](packages/facilitator/src/audit.ts).
+- **Asset (honest status).** The endpoints settle in **HBAR for now**. The Circle USDC faucet for Hedera stopped paying out during the event: its sender `0.0.11920` made no payouts for over an hour, and our requests show "Tokens sent" but never arrived. The code is asset-agnostic: `HEDERA_PAY_ASSET=usdc` switches to HTS USDC `0.0.429274` with stablecoin prices.
+- **Differences from the Whitechain path:** on Hedera each paid request is its own settlement (no channel batching), and the mandate is enforced by our facilitator, not by an onchain vault.
 
 ## Repo map
 | Path | What |
@@ -159,7 +170,7 @@ Planned (M7): an `exact`-scheme endpoint settling HTS USDC (`0.0.429274`) throug
 - The facilitator's and attestor's state lives in local SQLite. The attestor key is a single hot key.
 - The relayer's fee-to-WBT swap is described, not built.
 - ZKNox's ETHFALCON is experimental and unaudited ("not for production"), and so is this code.
-- Hedera: see the status file.
+- Hedera: settles in HBAR until the Circle USDC faucet delivers. Each paid request is a separate settlement, and the mandate is enforced by the facilitator (off-chain).
 
 ## Dependencies (public, open source)
 viem, @x402/core, @x402/fetch, @x402/hono, OpenZeppelin Contracts 5.4, Foundry/forge-std, **ZKNox ETHFALCON** (MIT, contracts + Python reference signer + C signer), ZKNox NTT (polyntt), Next.js, React, Tailwind, Hono, `node:sqlite` (used instead of better-sqlite3, so there is no native build), vitest, jose, qrcode.react, Emscripten (build-time).

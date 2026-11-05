@@ -19,7 +19,7 @@ Blocked on HUMAN: USDT into the vault, World IdP portal credentials, Hedera acco
 | Whitechain 1874 | LeashFactory | 0x754180420d905DbE4A92990C39b22F7373393C66 | ✅ | https://explorer.testnet.whitechain.io/address/0x754180420d905DbE4A92990C39b22F7373393C66 |
 | Whitechain 1874 | LeashVault (implementation) | 0x3B0E1F9450203a542f7DC644e58F5CDf13cDB306 | ✅ | https://explorer.testnet.whitechain.io/address/0x3B0E1F9450203a542f7DC644e58F5CDf13cDB306 |
 | Whitechain 1874 | Demo vault (clone) | 0x3B77877490A4C2A89e55b94e969cae1fA190c392 | clone of verified impl | https://explorer.testnet.whitechain.io/address/0x3B77877490A4C2A89e55b94e969cae1fA190c392 |
-| Hedera 296 | — | not deployed | — | — |
+| Hedera 296 | facilitator fee payer / HCS topic / agent / merchant | 0.0.11329302 / 0.0.11329753 / 0.0.11329481 / 0.0.11329482 | n/a (no contracts; x402 exact + HCS) | https://hashscan.io/testnet/topic/0.0.11329753 |
 
 ## 4. Live proof (most recent)
 - Whitechain USDT claim tx: https://explorer.testnet.whitechain.io/tx/0x1ab1d35e4951ed44954ee461eab6fd20568f4f50d530e3869ff126e474a18514 | first batch | Scenario A total: 300 paid calls → 10 claims (max 100 vouchers/claim), merchants +4.75 USDT, fees 0.010 USDT
@@ -28,7 +28,7 @@ Blocked on HUMAN: USDT into the vault, World IdP portal credentials, Hedera acco
 - Mandate loosening (approved) tx: https://explorer.testnet.whitechain.io/tx/0x36e2e14380f9fb673061803a10f3cc813f66cb85b5fb6b1b1e1a0ac577b6c1ab (cap 5 → 8 USDT; real Falcon signature; World check **MOCKED** issuer, validated by the same backend code path)
 - Denied approval attempt id + reason: `a4a047c2-47bd-4b64-89bf-c707afd930ec` — "denied by the owner" → no attestation, no tx, cap unchanged (5 USDT)
 - Scenario C: attacker opening a channel to an unlisted address → HTTP 422 `MerchantNotAllowed` from simulation, never broadcast
-- Hedera claim tx / HashScan: not started | HCS topic: not created
+- Hedera settled payment: https://hashscan.io/testnet/transaction/0.0.11329302@1793911532.195465156 (+2 more; fee payer = our facilitator; **HBAR** because the Circle USDC faucet stalled) | HCS topic: https://hashscan.io/testnet/topic/0.0.11329753 (5 messages: genesis, 3 settled, 1 refused for human approval)
 
 ## 5. Tests
 - forge: 71/71 passed (LeashVaultTest 59, EthFalconTest 8, FalconE2ETest 3, Eip712VectorsTest 1). No failures.
@@ -57,7 +57,11 @@ Blocked on HUMAN: USDT into the vault, World IdP portal credentials, Hedera acco
 - [x] WORLD_DEBRIEF.md (honest: real-IdP time-to-first-success still pending)
 
 **Hedera**
-- [ ] all items (M7 not started; plan: `exact` scheme via @x402/hedera + HCS audit log)
+- [x] x402 endpoint settling on Hedera testnet through our facilitator (`exact`, we are the fee payer)
+- [x] Agent discovers and pays end to end with no human approving (`pnpm agent h`)
+- [x] README with Hedera transaction IDs + HashScan links
+- [ ] Demo video ≤5 min
+- Extras: [x] spending controls (allowlist, per-payment max, daily cap) · [x] human approval above a threshold (refusal shown) · [x] HCS audit topic · [ ] HTS USDC settlement (code ready via `HEDERA_PAY_ASSET=usdc`; faucet didn't deliver)
 
 **ETHGlobal general**
 - [x] MIT license · [x] AI usage disclosed (README stub) · [x] steady commits · [ ] demo video · [ ] live demo link · [ ] repo public (HUMAN)

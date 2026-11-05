@@ -228,27 +228,30 @@ async function scenarioC() {
 
 async function scenarioH() {
   const calls = Number(flag("calls", "3"));
-  const { loadHederaState, hashscan } = await import("@leash/hedera");
+  const { loadHederaState, hashscan, hederaPricing, formatHedera } = await import("@leash/hedera");
+  const pricing = hederaPricing();
+  const amt = (a: string | bigint) => `${formatHedera(a)} ${pricing.symbol}`;
   const { ExactHederaScheme } = await import("@x402/hedera/exact/client");
   const { createClientHederaSigner, PrivateKey } = await import("@x402/hedera");
   const { x402Client } = await import("@x402/core/client");
   const { wrapFetchWithPayment } = await import("@x402/fetch");
   const st = loadHederaState();
   if (!st) throw new Error("run pnpm hedera:bootstrap first");
-  log(`${c.bold}Scenario H — the agent pays an x402 API on Hedera, settled in HTS USDC, with no human approving${c.reset}`);
+  log(`${c.bold}Scenario H — the agent pays an x402 API on Hedera (${pricing.symbol}), with no human approving${c.reset}`);
   const resources = (await discover()).filter((r) => (r.accepts[0] as { network?: string }).network === "hedera:testnet");
   log(`${c.dim}discovered ${resources.length} Hedera endpoints via ${FACILITATOR_URL}/discovery/resources${c.reset}`);
-  for (const r of resources) log(`  ${r.resource}  ${formatUnits6(r.accepts[0].amount)} USDC`);
+  for (const r of resources) log(`  ${r.resource}  ${amt(r.accepts[0].amount)}`);
 
   const signer = createClientHederaSigner(st.agent.accountId, PrivateKey.fromStringECDSA(st.agent.privateKey), { network: "hedera:testnet" });
   const client = new x402Client().register("hedera:testnet", new ExactHederaScheme(signer));
-  client.setSpendControls({ allowedAssets: [{ network: "hedera:testnet", asset: "0.0.429274", maxAmountPerPayment: "1000000" }] });
+  client.setSpendControls({ allowedAssets: [{ network: "hedera:testnet", asset: pricing.asset, maxAmountPerPayment: (pricing.mandate.approvalAbove * 2n).toString() }] });
   const paid = wrapFetchWithPayment(fetch, client);
   const hbar = async () => {
     const r = await fetch(`https://testnet.mirrornode.hedera.com/api/v1/accounts/${st.agent.accountId}`);
     return Number((await r.json()).balance.balance) / 1e8;
   };
-  log(`${c.dim}agent account ${st.agent.accountId} · HBAR ${await hbar()} (fees are paid by our facilitator) · mandate: ≤0.10/payment, ≤2.00/day, human approval above 0.50${c.reset}`);
+  const m = pricing.mandate;
+  log(`${c.dim}agent account ${st.agent.accountId} · balance ${await hbar()} HBAR · fees are paid by our facilitator · mandate: ≤${amt(m.perPaymentMax)}/payment, ≤${amt(m.dailyCap)}/day, human approval above ${amt(m.approvalAbove)}${c.reset}`);
 
   const byPath = Object.fromEntries(resources.map((r) => [new URL(r.resource).pathname, r]));
   for (let i = 0; i < calls; i++) {
@@ -259,16 +262,16 @@ async function scenarioH() {
       continue;
     }
     const pr = decodePaymentResponseHeader(res.headers.get("PAYMENT-RESPONSE")!);
-    log(`${c.green}  ✓ paid ${formatUnits6(r.accepts[0].amount)} USDC → settled on Hedera tx ${pr.transaction}  ${hashscan.tx(pr.transaction)}${c.reset}`);
+    log(`${c.green}  ✓ paid ${amt(r.accepts[0].amount)} → settled on Hedera tx ${pr.transaction}  ${hashscan.tx(pr.transaction)}${c.reset}`);
   }
 
   const big = byPath["/hedera/report"];
   if (big) {
     const res = await paid(big.resource);
-    log(res.status === 200 ? `${c.red}  !! premium report was paid without approval${c.reset}` : `${c.yellow}  ✋ ${formatUnits6(big.accepts[0].amount)} USDC report refused: ${reasonOf(res)} — above the auto-approve threshold, needs the owner${c.reset}`);
+    log(res.status === 200 ? `${c.red}  !! premium report was paid without approval${c.reset}` : `${c.yellow}  ✋ ${amt(big.accepts[0].amount)} report refused: ${reasonOf(res)} — above the auto-approve threshold, needs the owner${c.reset}`);
   }
   log(`${c.bold}audit log (HCS topic): ${hashscan.topic(st.topicId)}${c.reset}`);
-  log(`${c.dim}agent HBAR after: ${await hbar()} (unchanged — the agent never paid a fee)${c.reset}`);
+  log(`${c.dim}agent balance after: ${await hbar()} HBAR (only the payments left — every network fee was paid by the facilitator)${c.reset}`);
 }
 
 async function printSession() {

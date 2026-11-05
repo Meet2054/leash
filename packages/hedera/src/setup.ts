@@ -16,6 +16,7 @@ const opId = process.env.HEDERA_OPERATOR_ID;
 const opKey = process.env.HEDERA_OPERATOR_KEY;
 if (!opId || !opKey || opKey.includes("placeholder")) throw new Error("set HEDERA_OPERATOR_ID and HEDERA_OPERATOR_KEY in .env");
 const fundUsdc = process.argv.includes("--fund") ? BigInt(process.argv[process.argv.indexOf("--fund") + 1] ?? "5000000") : 0n;
+const fundHbar = process.argv.includes("--fund-hbar") ? Number(process.argv[process.argv.indexOf("--fund-hbar") + 1] ?? "20") : 0;
 
 const client = operatorClient(opId, opKey);
 
@@ -66,7 +67,6 @@ if (!state) {
     topicId,
     agent,
     merchant,
-    mandate: { perPaymentMax: "100000", dailyCap: "2000000", approvalAbove: "500000" }, // 0.10 / 2.00 / 0.50 USDC
   } satisfies HederaDemoState;
   writeFileSync(HEDERA_STATE, JSON.stringify(state, null, 2), { mode: 0o600 });
   console.log(`  saved ${HEDERA_STATE} (gitignored)`);
@@ -81,5 +81,14 @@ if (fundUsdc > 0n) {
     .execute(client);
   const r = await tx.getReceipt(client);
   console.log(`  ✓ funded agent with ${Number(fundUsdc) / 1e6} USDC (${r.status.toString()})  ${hashscan.tx(tx.transactionId.toString())}`);
+}
+if (fundHbar > 0) {
+  // payment money only — the agent still never pays a network fee (the facilitator is the fee payer)
+  const tx = await new TransferTransaction()
+    .addHbarTransfer(AccountId.fromString(opId), new Hbar(-fundHbar))
+    .addHbarTransfer(AccountId.fromString(state.agent.accountId), new Hbar(fundHbar))
+    .execute(client);
+  const r = await tx.getReceipt(client);
+  console.log(`  ✓ funded agent with ${fundHbar} HBAR (${r.status.toString()})  ${hashscan.tx(tx.transactionId.toString())}`);
 }
 client.close();

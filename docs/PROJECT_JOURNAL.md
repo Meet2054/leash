@@ -64,6 +64,8 @@ Track: **From Scratch** (all code written during the event; AI use disclosed; MI
 | 11-06 00:33 | Swapped 0.3 WBT → 21.93 USDT into the vault (`0x9eab…cb9`) | — |
 | 11-06 00:34–00:37 | **First real USDT claims**; Scenario A **300 paid calls → 10 claims**; fixed the self-throttle bug | `bdc81d8`, `44bf22f` |
 | 11-06 00:56 | Whitechain feedback, World debrief, demo script, this journal | `8d0e10a`+ |
+| 11-06 ~01:40–02:00 | Hedera: human created portal accounts (rotated once); bootstrap created the HCS topic + agent/merchant; Circle USDC faucet never delivered (first went to Arc, then the faucet stalled) | `caa3de8`, `635bedc` |
+| 11-06 ~02:12 | **Hedera live (HBAR fallback):** 3 x402 payments settled through our facilitator (fee payer), the 6 HBAR call was refused (human approval required), 5 HCS messages | this commit |
 
 ---
 
@@ -80,7 +82,7 @@ Track: **From Scratch** (all code written during the event; AI use disclosed; MI
 | M5 owner app + WASM gate | ✅ (gate PASS) | `apps/web/test/falcon-wasm.test.ts` |
 | M6 scenarios A/B/C + dashboard | 🟡 all three ran live; dashboard (Stats tab) built | the demo vault should be re-onboarded via the web (session expiry) |
 | h20 gate | not yet evaluated | — |
-| M7 Hedera | ❌ not started (needs account) | plan: `exact` + HCS |
+| M7 Hedera | ✅ (HBAR fallback) | 3 settled payments e.g. `0.0.11329302@1793911532.195465156`; HCS `0.0.11329753`; USDC switch ready (`HEDERA_PAY_ASSET=usdc`) once the faucet delivers |
 | M8 docs, verification, live link | 🟡 README/feedback/debrief/demo script done; contracts verified; **no live link** | needs hosting |
 | M9 freeze, video, final status | ❌ | — |
 
@@ -117,6 +119,7 @@ Money on chain: vault 17.17 USDT left; merchants received 4.75 USDT; fees 0.010 
 | 24 | `pnpm -s setup` ran pnpm's **built-in** `setup` command (not our script) and appended a PNPM_HOME block to the human's `~/.zshrc` | `setup` is a reserved pnpm command name | Renamed our script to `bootstrap` (`pnpm hedera:bootstrap`). Removing the block from ~/.zshrc was denied by the permission system, so the human was told to delete lines 38–44 if they want. **Lesson: never name a package script after a pnpm built-in (setup, init, add, install…)** |
 | 25 | Circle faucet "Tokens sent" but no USDC on Hedera (twice) | The faucet network was set to **Arc** (Circle's own testnet; the human's link was explorer.testnet.arc.io), not Hedera Testnet | Re-request with Network = **Hedera Testnet**, Send to = `0.0.11329481` (agent). Always check the network dropdown |
 | 26 | Human rotated the Hedera operator credentials | The HCS topic only accepts its submit key (the old operator) | `pnpm hedera:bootstrap -- --new-topic` created topic `0.0.11329753` under the new operator; restarted the facilitator + merchant so the fee payer is the new account. Agent/merchant accounts have their own keys, so they're unaffected |
+| 27 | Circle's Hedera USDC faucet stalled | Its sender `0.0.11920` made no user payouts from ~01:05 to 02:10 IST, despite "Tokens sent" in the UI | Switched the Hedera endpoints to **HBAR** (`HEDERA_PAY_ASSET=hbar`), funded the agent with 20 HBAR as payment money (fees still paid by the facilitator). Switch back with `HEDERA_PAY_ASSET=usdc` |
 | 23 | Agent session expiry | The CLI vault's session was created with a 24 h TTL (expires 2026-11-07 00:08 IST) | Demo: onboard a fresh vault in the web app with `AGENT_SESSION=agent-session-demo` |
 
 ---
