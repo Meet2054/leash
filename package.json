@@ -1,0 +1,13 @@
+{
+  "name": "leash",
+  "private": true,
+  "version": "0.1.0",
+  "license": "MIT",
+  "packageManager": "pnpm@10.15.1",
+  "scripts": {
+    "test": "pnpm test:contracts && pnpm test:ts",
+    "test:contracts": "cd contracts && forge test",
+    "test:ts": "pnpm -r --if-present test",
+    "status": "bash scripts/status.sh"
+  }
+}

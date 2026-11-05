@@ -1,0 +1,32 @@
+# secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+keys/
+
+# deps / build
+node_modules/
+dist/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+coverage/
+
+# foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/**/dry-run/
+
+# runtime data
+*.sqlite
+*.sqlite-journal
+*.db
+data/
+
+# python
+__pycache__/
+.venv/
+
+.DS_Store
