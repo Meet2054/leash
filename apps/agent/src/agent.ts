@@ -224,9 +224,15 @@ async function scenarioC() {
   void deployment;
 }
 
-const main = { a: scenarioA, b: scenarioB, c: scenarioC, stats: printStats }[scenario as "a"];
+async function printSession() {
+  const s = agentSession();
+  log(`agent session key: ${s.address}  (keys/${process.env.AGENT_SESSION ?? "agent-session"}.json, never funded)`);
+  log(`WBT balance: ${formatUnits(await publicClient.getBalance({ address: s.address }), 18)}`);
+}
+
+const main = { a: scenarioA, b: scenarioB, c: scenarioC, stats: printStats, session: printSession }[scenario as "a"];
 if (!main) {
-  console.log("usage: agent a [--calls N] | b [--cap 500] | c | stats");
+  console.log("usage: agent a [--calls N] | b [--cap 500] | c | stats | session   (env: AGENT_VAULT, AGENT_SESSION)");
   process.exit(1);
 }
 main().catch((e) => {

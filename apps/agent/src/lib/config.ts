@@ -36,7 +36,7 @@ function jsonFile<T>(path: string, make: () => T): T {
 }
 
 /** The agent's session key (ECDSA, never funded). Persisted in keys/ (gitignored). */
-export function agentSession(name = "agent-session"): LeashSession {
+export function agentSession(name = process.env.AGENT_SESSION ?? "agent-session"): LeashSession {
   const k = jsonFile(`${ROOT}keys/${name}.json`, () => ({ privateKey: generatePrivateKey() }));
   return createSession(k.privateKey as Hex);
 }
@@ -45,6 +45,10 @@ export function agentSession(name = "agent-session"): LeashSession {
 export type VaultRecord = { vault: Address; worldSubjectHash: Hex; worldSubject: string; pqPubKeyHash: Hex; createdTx?: Hex; mockedWorld: boolean };
 export const vaultRecordPath = () => `${ROOT}keys/vault-${CHAIN_ID}.json`;
 export function loadVault(): VaultRecord {
+  // AGENT_VAULT points the agent at a vault created in the web app (owner key in the browser)
+  if (process.env.AGENT_VAULT) {
+    return { vault: process.env.AGENT_VAULT as Address, worldSubjectHash: "0x" as Hex, worldSubject: "(web onboarding)", pqPubKeyHash: "0x" as Hex, mockedWorld: false };
+  }
   if (!existsSync(vaultRecordPath())) throw new Error("no vault yet: run `pnpm --filter @leash/agent owner create-vault`");
   return JSON.parse(readFileSync(vaultRecordPath(), "utf8"));
 }
