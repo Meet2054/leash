@@ -1,0 +1,13 @@
+{
+  "attestor": "0xCf3Ec7e25b141Da86CB31FcEBBf7d06D51118Ed6",
+  "chainId": 1874,
+  "claimFee": 1000,
+  "deployedAtBlock": 12307260,
+  "ethFalconVerifier": "0x78CdF2C1597487Be1C61dD74C3388C45Dd31B7cB",
+  "factory": "0x754180420d905DbE4A92990C39b22F7373393C66",
+  "feeRecipient": "0x15214887bECB1bfA641aC5F9F03229Bd299bAFc4",
+  "relayer": "0xD49fF88e1193Bf66D7e1d2b6d81a190C8a07d0Fc",
+  "token": "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
+  "vaultImplementation": "0x3B0E1F9450203a542f7DC644e58F5CDf13cDB306",
+  "zknoxEthFalcon": "0x4b92C21C389F46d5C6e7339ff3A83e509a91D2bB"
+}
