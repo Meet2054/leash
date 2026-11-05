@@ -1,0 +1,29 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+test = "test"
+script = "script"
+solc_version = "0.8.25"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 10000
+ffi = false
+fs_permissions = [{ access = "read", path = "./test/vectors" }, { access = "read-write", path = "./deployments" }]
+remappings = [
+  "forge-std/=lib/forge-std/src/",
+  "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+  "ETHFALCON/=lib/ETHFALCON/src/",
+  "InterfaceVerifier/=lib/ETHFALCON/lib/InterfaceVerifier/src/",
+  "sstore2/=lib/ETHFALCON/lib/sstore2/contracts/",
+]
+
+[fuzz]
+runs = 1000
+
+[rpc_endpoints]
+whitechain = "${WHITECHAIN_RPC}"
+hedera = "${HEDERA_RPC}"
+
+[lint]
+lint_on_build = false
