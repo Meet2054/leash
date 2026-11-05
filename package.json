@@ -8,6 +8,7 @@
     "test": "pnpm test:contracts && pnpm test:ts",
     "test:contracts": "cd contracts && forge test",
     "test:ts": "pnpm -r --if-present test",
-    "status": "bash scripts/status.sh"
+    "status": "bash scripts/status.sh",
+    "deploy:whitechain": "bash scripts/deploy-whitechain.sh"
   }
 }

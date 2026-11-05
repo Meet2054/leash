@@ -343,11 +343,18 @@ Rules: never claim something works without a link, a test result or command outp
 ## 14. Project Memory (living — keep updated; newest first within each list)
 
 ### Current state
-- Milestone: M0 (in progress — all read-only checks done 2026-11-05; remaining items need HUMAN)
-- Next action: at kickoff (Nov 6) → `git init`, first commit (`.gitignore` with `.env*`, `.env.example`, LICENSE, this file), then M1. Before that, HUMAN: relayer key + WBT, test USDT source.
-- Blockers: no repo/commits yet on purpose (From Scratch: no commits dated before Nov 6). Relayer WBT balance + ETHFALCON real deployment need a funded key (HUMAN).
+- Milestone: **M1 done** (70/70 forge tests). **M2 gate: PASS locally + on the Whitechain node via state override**; real deployment pending WBT. Starting M3 (TS: sdk, relayer, facilitator, merchant).
+- Next action: deploy script ready → faucet WBT to relayer `0xD49fF88e1193Bf66D7e1d2b6d81a190C8a07d0Fc` → `pnpm deploy:whitechain` → real Falcon applyChange tx on 1874. Meanwhile build M3.
+- Blockers: relayer has 0 WBT (faucet). USDT: human will get it from Whitechain.
+- Keys live in `.env` (gitignored, generated 2026-11-05). Falcon keys in `keys/` (gitignored). Python signer venv: `tools/owner-signer/.venv` (numpy, pycryptodome, eth_abi, polyntt @ ZKNoxHQ/NTT 3ac5f5d).
+- Research notes: `docs/research/x402.md`, `docs/research/world-idp.md` — read these before touching x402 or World code.
 
 ### Decision log
+- 2026-11-05 — World: use the World IdP **device grant** (RFC 8628) from the attestor backend; bind the action server-side (IdP has no binding_message/CIBA). Validate `auth_time ≥ attempt start`, `amr ∋ "pop"`, acr orb/orb-face, pinned `sub`. Sandbox issuer `https://sandbox.auth.world.org`. Offline/dev: `WORLD_MODE=mock` with a local RS256 JWKS (labelled MOCKED).
+- 2026-11-05 — x402: headers confirmed (`PAYMENT-REQUIRED` / `PAYMENT-SIGNATURE` / `PAYMENT-RESPONSE`, base64 JSON). Implement `leash-batch` as @x402/core `SchemeNetwork{Client,Server,Facilitator}`; facilitator must list `leash-batch`+`eip155:1874` in `/supported` before merchants start. Discovery: merchant `/.well-known/x402` (IETF draft format) + facilitator `/discovery/resources`.
+- 2026-11-05 — Hedera plan: the spec §10 fallback (`exact` scheme via `@x402/hedera`, HTS USDC `0.0.429274`, our facilitator as fee payer, mandate checks in facilitator + HCS log) is the primary Hedera path; EVM vault port only if time allows. Note: official x402 batch-settlement contract is live on Hedera testnet 296.
+- 2026-11-05 — Spec deviations (deliberate): `cooperativeClose(channelId, finalAmount, voucherSig, merchantSig)` (extra voucherSig so the merchant can't close above what the session signed); new EIP-712 types `CloseChannel(bytes32 channelId,uint256 finalAmount)` and `RevokeSession(address session)` (gasless self-revoke via `revokeSessionBySig`); factory has an extra `relayer` immutable (claim fee only when `msg.sender == relayer`); `createVault` only accepts `defaultVerifier` (prevents squatting a victim's counterfactual address with a permissive verifier); `MAX_AUTH_AGE = 1h` onchain check on `WorldApproval.authTime`; `GRACE = 15 min`; merchant daily cap counts amounts *locked* per UTC day; claims stay valid after session revocation (merchant already served); BATCH action (no nesting) so onboarding/approvals need one World check.
+- 2026-11-05 — Daily cap / session cap semantics: `locked + spent ≤ cap`; closing returns unclaimed lock to the session's headroom.
 - 2026-11-05 — `EthFalconVerifier` adapter will call ZKNox's **4-arg pure** `verify(bytes h, bytes salt, uint256[] s2, uint256[] ntth)`, not its ERC-7913 `verify(bytes key, bytes32, bytes)`, because the 7913 variant takes `key` = 20-byte SSTORE2 pointer (pubkey must be stored onchain first via `setKey`). The 4-arg form keeps §6.3's "pubkey in calldata, check keccak against `pqPubKeyHash`". Adapter must pre-check lengths / try-catch: 4-arg verify **reverts** (not false) on salt≠40 B, s2≠32 words, ntth≠32 words. Sig encoding to standardise on: salt(40 B) ‖ s2(32×32 B) = 1,064 B; pubkey = abi `uint256[32]` (1,024 B).
 - 2026-11-05 — Use `https://rpc.testnet.whitechain.io` (chain 1874). NOT `rpc-testnet.whitechain.io`, which is the old testnet (chain 2625).
 - 2026-11-05 — Contract verification via Blockscout (`forge verify-contract --verifier blockscout --verifier-url https://explorer.testnet.whitechain.io/api/`). VERIFY at M8 with a real deploy.
@@ -369,6 +376,12 @@ Rules: never claim something works without a link, a test result or command outp
 | ERC-4337 EntryPoint v0.7 (informational) | has code (16,035 B). Also present: CREATE2 deployer `0x4e59…956C`, Multicall3 `0xcA11…CA11` | 2026-11-05 |
 | ETHFALCON verify on Whitechain | **PASS via state override** (not yet a real deployment): ZKNox `ZKNOX_ethfalcon` @ commit `43ac863` (2026-10-21), solc 0.8.25, runtime 6,985 B (< EIP-170). Vectors 0–2 from `test/ethfalcon.t.sol`: valid → `true`, tampered message → `false`. | 2026-11-05 |
 | ETHFALCON real deployment on Whitechain | **NOT DONE** — needs funded deployer key (HUMAN) | 2026-11-05 |
+| Off-chain Falcon sig over **Leash EIP-712 digests** verifies on Whitechain node | **PASS** (state override): init/change0/change1 digests from `contracts/test/vectors/falcon_leash.json` → `true`, tampered → `false` | 2026-11-05 |
+| x402 v2 header names | **CONFIRMED** `PAYMENT-REQUIRED` (402), `PAYMENT-SIGNATURE` (retry), `PAYMENT-RESPONSE` (success); base64 JSON; @x402/* 2.30.0 | 2026-11-05 |
+| x402 discovery format | No normative `/.well-known/x402`; official = Bazaar extension + facilitator `GET /discovery/resources`; `.well-known/x402` only in IETF draft-hawkins-x402-dns-discovery-03 | 2026-11-05 |
+| World Agent Pass | = World IdP (auth.world.org). Flows: auth code+PKCE, device grant. No CIBA/binding_message. RS256, pairwise sub. Details: docs/research/world-idp.md | 2026-11-05 |
+| Hedera USDC (testnet) | HTS `0.0.429274`, 6 decimals (per @x402/hedera default + mirror node) | 2026-11-05 |
+| Contract sizes | LeashVault runtime 18,644 B, LeashFactory 5,897 B, EthFalconVerifier 1,652 B, ZKNOX_ethfalcon 6,985 B — all < 24,576 | 2026-11-05 |
 | Relayer WBT balance | **NOT DONE** — no relayer key yet (HUMAN) | 2026-11-05 |
 | Hedera JSON-RPC | `https://testnet.hashio.io/api` → chainId 296, block gas limit 150M. Falcon runtime 6,985 B fits Hedera's 24 KB limit. Per-tx gas cap (~15M) still to confirm at M7. | 2026-11-05 |
 | ETHFALCON repo hygiene | its `foundry.toml` sets `ffi = true`; none of its tests call `vm.ffi`, but **never vendor its foundry.toml**; import only `src/` (+ its `sstore2`, `InterfaceVerifier` deps) | 2026-11-05 |
@@ -385,6 +398,8 @@ WHITECHAIN_RPC, RELAYER_PK_WHITECHAIN, ATTESTOR_PK, WORLD_CLIENT_ID, WORLD_CLIEN
 |---|---|---|
 | ETHFALCON verify, raw 4-arg call (eth_estimateGas, whole tx incl. 21k intrinsic + 2,372 B calldata), vectors 0/1/2 | 1,529,482 / 1,529,984 / 1,530,672 gas ≈ **0.0076 WBT** at 5 gwei; L1 data fee ≈ 0 on this testnet | — |
 | claim (estimate, not measured) | L1 data fee ≈ 0; ~0.0005 WBT if ~100k gas | — |
+| forge (local, MockPQ): openChannel 164,512 · claim ≤ 93,360 · closeExpired ≤ 25,635 · applyChange median 43,350 · createVault median 261,385 (see contracts/gas-report.txt) | — | — |
+| forge (local, real Falcon): EthFalconVerifier.verify 1,519,451 in-EVM · applyChange loosening 1,577,791 | — | — |
 
 ### Open questions for the human
 - Relayer + deployer key: create one, fund with WBT (faucet?), put in `.env` as `RELAYER_PK_WHITECHAIN`. Then M0 can record the balance and do a real ETHFALCON deploy.
