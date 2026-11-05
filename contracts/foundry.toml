@@ -9,7 +9,7 @@ evm_version = "cancun"
 optimizer = true
 optimizer_runs = 10000
 ffi = false
-fs_permissions = [{ access = "read", path = "./test/vectors" }, { access = "read-write", path = "./deployments" }]
+fs_permissions = [{ access = "read-write", path = "./test/vectors" }, { access = "read-write", path = "./deployments" }]
 remappings = [
   "forge-std/=lib/forge-std/src/",
   "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
