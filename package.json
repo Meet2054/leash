@@ -10,5 +10,11 @@
     "test:ts": "pnpm -r --if-present test",
     "status": "bash scripts/status.sh",
     "deploy:whitechain": "bash scripts/deploy-whitechain.sh"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3",
+    "vitest": "^5.1.0"
   }
 }
