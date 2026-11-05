@@ -45,7 +45,7 @@ Blocked on HUMAN: USDT into the vault, World IdP portal credentials, Hedera acco
 - [ ] README line on why onchain stablecoin settlement on Whitechain
 - [x] Payer (agent) never holds WBT / seed phrase / picks a chain (agent WBT balance 0; demo shown in `pnpm agent a` output)
 - [ ] README: who pays gas, how the relayer gets WBT, what stops draining (implemented: simulate-before-send, budgets, rate limits, allowlist, auto-pause; write-up pending)
-- [x] Steady commit history (31 commits) · [ ] README setup/architecture/limitations
+- [x] Steady commit history (22 commits so far) · [ ] README setup/architecture/limitations
 - [ ] 2–4 min demo video · [ ] WHITECHAIN_FEEDBACK.md
 
 **World**
