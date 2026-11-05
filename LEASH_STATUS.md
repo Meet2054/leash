@@ -43,18 +43,18 @@ Blocked on HUMAN: USDT into the vault, World IdP portal credentials, Hedera acco
 **Whitechain**
 - [x] Contracts deployed on 1874 and verified on Blockscout
 - [x] ≥1 payment in USDT `0xcedf…55a7` settled in the main flow (10 claims, 300 payments)
-- [ ] README line on why onchain stablecoin settlement on Whitechain
+- [x] README line on why onchain stablecoin settlement on Whitechain
 - [x] Payer (agent) never holds WBT / seed phrase / picks a chain (agent WBT balance 0; demo shown in `pnpm agent a` output)
-- [ ] README: who pays gas, how the relayer gets WBT, what stops draining (implemented: simulate-before-send, budgets, rate limits, allowlist, auto-pause; write-up pending)
-- [x] Steady commit history (22 commits so far) · [ ] README setup/architecture/limitations
-- [ ] 2–4 min demo video · [ ] WHITECHAIN_FEEDBACK.md
+- [x] README: who pays gas, how the relayer gets WBT, what stops draining
+- [x] Steady commit history (22 commits so far) · [x] README setup/architecture/limitations
+- [ ] 2–4 min demo video (script ready: docs/DEMO_SCRIPT.md) · [x] WHITECHAIN_FEEDBACK.md
 
 **World**
 - [~] Official World ID Agent Pass: device-grant integration written against auth.world.org docs; **only exercised with the MOCKED issuer** so far (needs portal credentials)
 - [x] Full journey request → completion → backend validation → protected action executes (mandate loosened onchain) — with MOCKED issuer
 - [x] Denied / cancelled / expired path where nothing happens (owner deny verified live; World cancel/expire paths implemented and unit-exercised via mock)
 - [x] Validation in a secure backend, no client secrets, device_code never sent to the browser, unvalidated client data never authorizes
-- [ ] WORLD_DEBRIEF.md
+- [x] WORLD_DEBRIEF.md (honest: real-IdP time-to-first-success still pending)
 
 **Hedera**
 - [ ] all items (M7 not started; plan: `exact` scheme via @x402/hedera + HCS audit log)
@@ -70,6 +70,7 @@ Blocked on HUMAN: USDT into the vault, World IdP portal credentials, Hedera acco
 - The deployed app is not live yet. Services run on a laptop.
 
 ## 9. Decisions since last report
+- Full memory of the build (dream, taste, timeline, 23 failures + root causes, runbook, human asks): `docs/PROJECT_JOURNAL.md`.
 - World integration uses the IdP device grant; action binding is server-side (the IdP has no binding_message/CIBA).
 - Hedera primary path = spec §10 fallback (`exact` + HCS) because of time.
 - In-browser Falcon: ZKNox C compiled with `-DETHFALCON` plus our CSPRNG `randombytes` (their JS build uses SHAKE + the deterministic KAT RNG, so it was unusable).
