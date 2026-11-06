@@ -9,5 +9,59 @@
   "relayer": "0xD49fF88e1193Bf66D7e1d2b6d81a190C8a07d0Fc",
   "token": "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
   "vaultImplementation": "0x3B0E1F9450203a542f7DC644e58F5CDf13cDB306",
-  "zknoxEthFalcon": "0x4b92C21C389F46d5C6e7339ff3A83e509a91D2bB"
+  "zknoxEthFalcon": "0x4b92C21C389F46d5C6e7339ff3A83e509a91D2bB",
+  "deployedAt": "2026-11-05T18:33:48.000Z",
+  "deployer": "0xD49fF88e1193Bf66D7e1d2b6d81a190C8a07d0Fc",
+  "deployTxs": {
+    "ZKNOX_ethfalcon": {
+      "address": "0x4b92c21c389f46d5c6e7339ff3a83e509a91d2bb",
+      "tx": "0xedfb1a2555302f0e795b3fd46bcf3752cd5ad7d95e955a5adaa34fcec41e5b1d",
+      "block": 12307268,
+      "gasUsed": 1557504
+    },
+    "EthFalconVerifier": {
+      "address": "0x78cdf2c1597487be1c61dd74c3388c45dd31b7cb",
+      "tx": "0xb95c78e1689930eee8059dac24bc878f5a49a8c1f34ff76ad84695e9294ddf14",
+      "block": 12307271,
+      "gasUsed": 411680
+    },
+    "LeashFactory": {
+      "address": "0x754180420d905dbe4a92990c39b22f7373393c66",
+      "tx": "0x02b7e6e0f9cdb2100fcbbbc76d809e6357f7215ebc05192d6eb91789e004a7b5",
+      "block": 12307273,
+      "gasUsed": 5443894
+    }
+  },
+  "build": {
+    "solc": "0.8.25",
+    "evmVersion": "cancun",
+    "optimizer": true,
+    "optimizerRuns": 10000,
+    "viaIR": false
+  },
+  "sources": {
+    "repo": "this repository",
+    "deployCommit": "b21410a43bed13921f24e917da279b51028cdabc",
+    "contractsSourceCommit": "7622a82f59896670ef87f195d480ad31188ac1ee",
+    "deployScriptCommit": "64c9662e4dfe21ef75d5b06c481383c2e759c3d5",
+    "zknoxEthfalcon": {
+      "repo": "https://github.com/ZKNoxHQ/ETHFALCON",
+      "commit": "43ac863e30281bb7821748178d39967367d54bc2"
+    },
+    "openzeppelin": {
+      "repo": "https://github.com/OpenZeppelin/openzeppelin-contracts",
+      "tag": "v5.4.0",
+      "commit": "c64a1edb67b6e3f4a15cca8909c9482ad33a02b0"
+    },
+    "forgeStd": {
+      "commit": "f3dae6e6ee381f25eb6a246f7da9b85c91a68219"
+    }
+  },
+  "bytecodeCheck": {
+    "ZKNOX_ethfalcon": "exact match (immutables masked)",
+    "EthFalconVerifier": "exact match (immutables masked)",
+    "LeashFactory": "exact match (immutables masked)",
+    "LeashVault (implementation)": "exact match (immutables masked)"
+  },
+  "verifiedOn": "https://explorer.testnet.whitechain.io (Blockscout)"
 }

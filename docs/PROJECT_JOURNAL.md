@@ -190,6 +190,9 @@ Money on chain: vault 17.17 USDT left; merchants received 4.75 USDT; fees 0.010 
 
 Hedera mandate (facilitator-enforced, off-chain): ≤0.10 USDC per payment, ≤2.00 USDC/day, merchant allowlist, payments above 0.50 USDC need a human approval (refused otherwise). Endpoints: `/hedera/quote` $0.01, `/hedera/translate` $0.02, `/hedera/report` $0.60 (deliberately above the threshold). Run: `pnpm agent h`. Fund the agent: `pnpm --filter @leash/hedera run bootstrap -- --fund 5000000` once the operator has USDC.
 
+### Reproducibility
+`contracts/deployments/1874.json` holds the deploy txs, build settings (solc 0.8.25, cancun, optimizer 10000), pinned deps (ZKNox `43ac863`, OZ v5.4.0 `c64a1ed`), deploy commit `b21410a`, contracts-source commit `7622a82`, and a bytecode check (all 4 contracts are an exact match with immutables masked). Regenerate with `DEPLOY_COMMIT=<sha> node scripts/record-deploy.mjs`; `scripts/deploy-whitechain.sh` now runs it automatically.
+
 ### Key transactions (Whitechain 1874)
 - Faucet → relayer `0x756972958c9f60aa8191a81cee37c08b5c43e42df72b0c8a164236932ef342c6`
 - Deploy: ZKNOX `0xedfb1a25…1d`, verifier `0xb95c78e1…f14`, factory `0x02b7e6e0…b5`

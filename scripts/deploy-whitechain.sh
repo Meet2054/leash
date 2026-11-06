@@ -7,4 +7,5 @@ export DEPLOYER_PK="$RELAYER_PK_WHITECHAIN" TOKEN_ADDRESS="$USDT_ADDRESS" HTS_AS
 cd "$ROOT/contracts"
 forge script script/Deploy.s.sol --rpc-url "$WHITECHAIN_RPC" --broadcast --slow \
   --verify --verifier blockscout --verifier-url https://explorer.testnet.whitechain.io/api/ "$@"
-cat deployments/1874.json
+cd "$ROOT" && DEPLOY_COMMIT=$(git rev-parse HEAD) node scripts/record-deploy.mjs 1874 "$WHITECHAIN_RPC"   # reproducibility record
+cat contracts/deployments/1874.json

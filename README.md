@@ -22,6 +22,7 @@ AI agents now spend money on their own. Their spending limits are usually enforc
 | EthFalconVerifier (verified) | [0x78Cd…B7cB](https://explorer.testnet.whitechain.io/address/0x78CdF2C1597487Be1C61dD74C3388C45Dd31B7cB) |
 | LeashFactory (verified) | [0x7541…3C66](https://explorer.testnet.whitechain.io/address/0x754180420d905DbE4A92990C39b22F7373393C66) |
 | LeashVault implementation (verified) | [0x3B0E…B306](https://explorer.testnet.whitechain.io/address/0x3B0E1F9450203a542f7DC644e58F5CDf13cDB306) |
+| Reproducible deploy record | [`contracts/deployments/1874.json`](contracts/deployments/1874.json): deploy txs, solc 0.8.25, `evm_version = cancun`, ZKNox `43ac863`, deployed from git commit `b21410a` (contract sources `7622a82`). The live bytecode of all 4 contracts **exactly matches** a local build of that commit (immutables masked; `node scripts/record-deploy.mjs`) |
 | Vault created, Falcon signature checked onchain (1.90M gas) | [0x8229…d298](https://explorer.testnet.whitechain.io/tx/0x82290b8eddfaba7b3ed963520edb0c0bbab77fe3eeb1297fb4a34dd27853d298) |
 | Agent's cap raised after World check + Falcon signature (1.65M gas) | [0x36e2…c1ab](https://explorer.testnet.whitechain.io/tx/0x36e2e14380f9fb673061803a10f3cc813f66cb85b5fb6b1b1e1a0ac577b6c1ab) |
 | First USDT claim (one tx settling many x402 payments) | [0x1ab1…4518](https://explorer.testnet.whitechain.io/tx/0x1ab1d35e4951ed44954ee461eab6fd20568f4f50d530e3869ff126e474a18514) |
