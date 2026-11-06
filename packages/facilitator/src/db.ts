@@ -190,6 +190,41 @@ export class Store {
     this.db.prepare("UPDATE channels SET claimed_onchain = ?, status = 'open' WHERE id = ?").run(onchainClaimed, channelId.toLowerCase());
   }
 
+  /** Per-vault counters for GET /stats?vault= (channels, vouchers, claims, audit events). */
+  vaultStats(vault: string) {
+    const v = vault.toLowerCase();
+    const ch = this.db
+      .prepare("SELECT id, session, merchant, locked, last_accepted, vouchers, claimed_onchain, status FROM channels WHERE lower(vault) = ?")
+      .all(v) as { id: string; session: string; merchant: string; locked: string; last_accepted: string; vouchers: number; claimed_onchain: string; status: string }[];
+    const ids = new Set(ch.map((c) => c.id.toLowerCase()));
+    const claims = (this.db.prepare("SELECT channel_id, delta, fee, vouchers_covered, calldata_bytes, tx, at FROM claims ORDER BY at DESC").all() as { channel_id: string; delta: string; fee: string; vouchers_covered: number; calldata_bytes: number; tx: string; at: number }[]).filter((c) => ids.has(c.channel_id.toLowerCase()));
+    const ev = this.db.prepare("SELECT kind, COUNT(*) AS n FROM events WHERE lower(vault) = ? GROUP BY kind").all(v) as { kind: string; n: number }[];
+    const sum = (xs: string[]) => xs.reduce((a, x) => a + BigInt(x), 0n).toString();
+    const sessions = new Map<string, { vouchers: number; committedAtomic: bigint; channels: number }>();
+    for (const c of ch) {
+      const k = c.session.toLowerCase();
+      const cur = sessions.get(k) ?? { vouchers: 0, committedAtomic: 0n, channels: 0 };
+      sessions.set(k, { vouchers: cur.vouchers + c.vouchers, committedAtomic: cur.committedAtomic + BigInt(c.last_accepted), channels: cur.channels + 1 });
+    }
+    return {
+      vault: v,
+      channels: { total: ch.length, open: ch.filter((c) => c.status === "open").length, lockedOpenAtomic: sum(ch.filter((c) => c.status === "open").map((c) => c.locked)) },
+      vouchersServed: ch.reduce((a, c) => a + c.vouchers, 0),
+      committedByVouchersAtomic: sum(ch.map((c) => c.last_accepted)),
+      claimedOnchainAtomic: sum(ch.map((c) => c.claimed_onchain)),
+      claims: {
+        count: claims.length,
+        paidToMerchantsAtomic: (BigInt(sum(claims.map((c) => c.delta))) - BigInt(sum(claims.map((c) => c.fee)))).toString(),
+        feesAtomic: sum(claims.map((c) => c.fee)),
+        vouchersCovered: claims.reduce((a, c) => a + c.vouchers_covered, 0),
+        calldataBytes: claims.reduce((a, c) => a + c.calldata_bytes, 0),
+        latest: claims.slice(0, 10).map((c) => ({ tx: c.tx, deltaAtomic: c.delta, vouchers: c.vouchers_covered, at: c.at })),
+      },
+      bySession: [...sessions].map(([session, x]) => ({ session, channels: x.channels, vouchers: x.vouchers, committedAtomic: x.committedAtomic.toString() })),
+      events: Object.fromEntries(ev.map((e) => [e.kind, e.n])),
+    };
+  }
+
   claimTotals(): { count: number; calldataBytes: number; delta: bigint; fee: bigint; costWei: bigint } {
     const rows = this.db.prepare("SELECT delta, fee, calldata_bytes, cost_wei FROM claims").all() as Pick<ClaimRow, "delta" | "fee" | "calldata_bytes" | "cost_wei">[];
     return rows.reduce(

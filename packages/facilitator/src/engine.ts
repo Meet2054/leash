@@ -68,6 +68,8 @@ export class ChannelEngine {
   private readonly cache = new Map<string, { at: number; v: unknown }>();
   private readonly voucherLimiter: RateLimiter;
   private readonly openLimiter = new RateLimiter(10, 0.2);
+  /** API-key lane (e.g. the Break-the-Leash arena): its own, larger bucket instead of the shared per-IP one. */
+  private readonly apiOpenLimiter = new RateLimiter(Number(process.env.API_OPEN_BURST ?? 60), Number(process.env.API_OPEN_PER_SEC ?? 2));
   private batching = false;
 
   constructor(
@@ -231,11 +233,14 @@ export class ChannelEngine {
 
   // ------------------------------------------------------------------ channel opening (gasless for the agent)
 
-  async openChannel(body: OpenChannelRequest, ip = "?"): Promise<OpenChannelResponse> {
+  /** `caller` is "key:<name>" for an authenticated API key, otherwise "ip:<address>" (or a bare IP). */
+  async openChannel(body: OpenChannelRequest, caller = "?"): Promise<OpenChannelResponse> {
     if (body.chainId !== this.cfg.chainId) throw new RelayerError("not_allowed", `wrong chain ${body.chainId}`);
     const r = body.request;
-    if (!isAddress(r.vault) || !isAddress(r.merchant) || !isHex(body.sig)) throw new RelayerError("not_allowed", "bad request");
-    if (!this.openLimiter.take(`ip:${ip}`) || !this.openLimiter.take(`vault:${r.vault.toLowerCase()}`)) {
+    if (!isAddress(r.vault) || !isHex(body.sig) || !isAddress(r.merchant)) throw new RelayerError("not_allowed", "bad request");
+    const lane = caller.startsWith("key:") ? caller : `ip:${caller.replace(/^ip:/, "")}`;
+    const laneLimiter = lane.startsWith("key:") ? this.apiOpenLimiter : this.openLimiter;
+    if (!laneLimiter.take(lane) || !this.openLimiter.take(`vault:${r.vault.toLowerCase()}`)) {
       throw new RelayerError("rate_limited", "too many channel opens");
     }
     if (!(await this.isLeashVault(r.vault))) throw new RelayerError("not_allowed", "vault was not created by the Leash factory");

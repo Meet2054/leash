@@ -8,7 +8,27 @@ import type { FacilitatorContext } from "./context.js";
 import { computeStats } from "./stats.js";
 import { PqLedger, pqSummary } from "./pqledger.js";
 
-const ip = (c: Context) => c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? c.req.header("x-real-ip") ?? "local";
+const ip = (c: Context) => c.req.header("cf-connecting-ip") ?? c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? c.req.header("x-real-ip") ?? "local";
+
+/**
+ * API keys for partner lanes (LEASH_API_KEYS="arena:<secret>,other:<secret>", or ARENA_API_KEY=<secret>).
+ * A valid `x-api-key` gets its own rate-limit bucket; an invalid one is rejected (401) so misconfiguration
+ * is loud. No key = the shared per-IP lane.
+ */
+export function parseApiKeys(env: Record<string, string | undefined> = process.env): Map<string, string> {
+  const m = new Map<string, string>();
+  for (const part of (env.LEASH_API_KEYS ?? "").split(",").map((x) => x.trim()).filter(Boolean)) {
+    const i = part.indexOf(":");
+    if (i > 0 && part.length - i > 16) m.set(part.slice(i + 1), part.slice(0, i));
+  }
+  if (env.ARENA_API_KEY && env.ARENA_API_KEY.length >= 16) m.set(env.ARENA_API_KEY, "arena");
+  return m;
+}
+export function callerLane(apiKey: string | undefined, keys: Map<string, string>, ipAddr: string): { lane: string } | { error: "bad_api_key" } {
+  if (!apiKey) return { lane: `ip:${ipAddr}` };
+  const name = keys.get(apiKey);
+  return name ? { lane: `key:${name}` } : { error: "bad_api_key" };
+}
 
 function fail(c: Context, e: unknown) {
   if (e instanceof RelayerError) return c.json({ error: e.code, message: e.message }, e.status as 400);
@@ -22,7 +42,8 @@ export const ATTESTOR_AUDIT_KINDS = ["ApprovalDenied", "ApprovalGranted", "Appro
 
 export function createApp(ctx: FacilitatorContext) {
   const app = new Hono();
-  app.use("*", cors({ origin: "*", allowHeaders: ["Content-Type", "Authorization"], allowMethods: ["GET", "POST", "OPTIONS"] }));
+  const apiKeys = parseApiKeys();
+  app.use("*", cors({ origin: "*", allowHeaders: ["Content-Type", "Authorization", "x-api-key"], allowMethods: ["GET", "POST", "OPTIONS"] }));
 
   app.get("/health", (c) => c.json({ ok: true, network: ctx.network, relayer: ctx.relayer.address }));
 
@@ -57,7 +78,9 @@ export function createApp(ctx: FacilitatorContext) {
   app.post("/channels/open", async (c) => {
     try {
       const body = (await c.req.json()) as OpenChannelRequest;
-      return c.json(await ctx.engine.openChannel(body, ip(c)));
+      const who = callerLane(c.req.header("x-api-key"), apiKeys, ip(c));
+      if ("error" in who) return c.json({ error: "bad_api_key", message: "unknown x-api-key" }, 401);
+      return c.json(await ctx.engine.openChannel(body, who.lane));
     } catch (e) {
       return fail(c, e);
     }
@@ -216,7 +239,14 @@ export function createApp(ctx: FacilitatorContext) {
       return fail(c, e);
     }
   });
-  app.get("/stats", async (c) => c.json(await computeStats(ctx)));
+  app.get("/stats", async (c) => {
+    const vault = c.req.query("vault");
+    if (vault) {
+      if (!isAddress(vault)) return c.json({ error: "bad_vault" }, 400);
+      return c.json({ network: ctx.network, ...ctx.store.vaultStats(vault), breaker: ctx.engine.breaker ? { state: ctx.engine.breaker.status(getAddress(vault)).state } : null });
+    }
+    return c.json(await computeStats(ctx));
+  });
   app.get("/events", (c) => c.json(ctx.store.events(Number(c.req.query("limit") ?? 100), c.req.query("kind") ?? undefined)));
   app.get("/claims", (c) =>
     c.json(ctx.store.claims(Number(c.req.query("limit") ?? 100)).map((r) => ({ ...r, explorerUrl: EXPLORERS[r.chain_id]?.tx(r.tx) }))),

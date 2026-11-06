@@ -265,6 +265,14 @@ Open **https://permissionless.in** on your phone.
    - **Injected agent** sends the Cornell-style 500 USDT ask. The safety policy blocks it before any World check.
 3. **Freeze all** revokes the agent with your key alone, after which the agent can't pay.
 
+## Partner API (e.g. the Break-the-Leash arena)
+- **Hosts:** `https://facilitator.permissionless.in` (x402 facilitator + discovery) and `https://merchant.permissionless.in` (paid endpoints). CORS is open.
+- **`x-api-key` lane:**
+  - Set the keys with `LEASH_API_KEYS="name:secret,…"`, or `ARENA_API_KEY`.
+  - Requests with a valid key (e.g. `/channels/open`) get their own rate-limit bucket. The default is a burst of 60, then 2/s (`API_OPEN_BURST` / `API_OPEN_PER_SEC`), instead of the shared per-IP one.
+  - A wrong key gets 401. Per-vault limits and every onchain check still apply.
+- **`GET /stats?vault=0x…`** returns per-vault counters: channels (open/locked), vouchers served, committed vs claimed, claims (count, paid to merchants, fees, latest txs), per-session breakdown, audit-event counts, and breaker state.
+
 ## Deploy (live link)
 - **https://permissionless.in** runs through a Cloudflare Tunnel to the backend host, which runs the owner app + attestor, the facilitator and the merchant.
 - How to run it on any server: [`deploy/cloudflare/README.md`](deploy/cloudflare/README.md). The VPS alternative (Caddy + pm2) is in [`deploy/`](deploy/).
