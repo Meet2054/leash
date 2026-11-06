@@ -98,31 +98,35 @@ export function WorldCheck({ attemptId, onDone, onRetry }: { attemptId: string; 
         <div className="text-[0.9rem] font-medium">Verify with World ID</div>
         {mocked ? <Pill tone="warn">MOCKED issuer</Pill> : <Pill>{mmss(left)} left</Pill>}
       </div>
-      <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-        {a.verificationUriComplete && (
-          <div className="shrink-0 rounded-2xl bg-white p-3">
-            <QRCodeSVG value={a.verificationUriComplete} size={148} />
-          </div>
+      <ol className="space-y-2 text-[0.84rem] leading-relaxed text-muted-foreground">
+        <li>
+          <span className="text-foreground">1.</span> Tap <span className="text-foreground">Open World ID</span> below, then <span className="text-foreground">Continue with World ID</span>.
+        </li>
+        <li>
+          <span className="text-foreground">2.</span> {mocked ? "Approve on the mock page." : <>World shows a QR code. <span className="text-foreground">Scan it with the World ID app</span> on the phone that holds the World ID, and approve. If the app is on this phone, tap <span className="text-foreground">Open World ID app</span> instead.</>}
+        </li>
+        {!mocked && (
+          <li>
+            <span className="text-foreground">3.</span> Asked <span className="text-foreground">&ldquo;Are you a returning user?&rdquo;</span> Choose <span className="text-foreground">No, create an account</span> the first time with that World ID, <span className="text-foreground">Yes</span> after that.
+          </li>
         )}
-        <ol className="space-y-2 text-[0.82rem] leading-relaxed text-muted-foreground">
-          <li>
-            <span className="text-foreground">1.</span> Tap the button below (on a laptop you can scan the code with your phone instead).
-          </li>
-          <li>
-            <span className="text-foreground">2.</span> Approve in the {mocked ? "mock page" : "World ID app"}.
-          </li>
-          {!mocked && (
-            <li>
-              <span className="text-foreground">3.</span> If you&apos;re asked <span className="text-foreground">&ldquo;Are you a returning user?&rdquo;</span>, choose <span className="text-foreground">No, create an account</span> the first time, and <span className="text-foreground">Yes</span> after that.
-            </li>
-          )}
-        </ol>
-      </div>
+      </ol>
       <Button size="lg" className="w-full" asChild>
         <a href={a.verificationUriComplete ?? "#"} target="_blank" rel="noreferrer">
           {mocked ? "Open mock World check" : "Open World ID"} <ExternalLink />
         </a>
       </Button>
+      {a.verificationUriComplete && (
+        <details className="text-[0.75rem] text-muted-foreground">
+          <summary className="cursor-pointer hover:text-foreground">Continue on another phone instead</summary>
+          <div className="mt-2 flex items-center gap-3">
+            <div className="shrink-0 rounded-xl bg-white p-2">
+              <QRCodeSVG value={a.verificationUriComplete} size={112} />
+            </div>
+            <span>Scan with that phone&apos;s camera (not the World ID app). It opens this same request there; this page finishes by itself.</span>
+          </div>
+        </details>
+      )}
       <div className="flex items-center justify-center gap-2 text-[0.75rem] text-muted-foreground">
         <Loader2 className="size-3.5 animate-spin" /> Waiting for your approval…
       </div>
