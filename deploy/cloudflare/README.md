@@ -22,6 +22,7 @@ BIND_HOST=127.0.0.1 pnpm --filter @leash/web start   # :3000, only reachable thr
 
 # 2. edge
 cloudflared tunnel --config ~/.cloudflared/leash.yml run leash    # see tunnel.example.yml
+scripts/tunnel-watchdog.sh ~/.cloudflared/leash.yml https://permissionless.in/api/config &  # restarts a stuck tunnel
 ```
 - Register `https://permissionless.in/api/world/callback` as the redirect URI of the World IdP app (sandbox portal).
 - `deploy/bootstrap.sh` does the same on a fresh VPS with Caddy + pm2, if you'd rather not use a tunnel.
