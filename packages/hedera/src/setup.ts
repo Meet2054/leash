@@ -11,6 +11,7 @@ import { AccountCreateTransaction, AccountId, Hbar, PrivateKey, TokenId, Transfe
 import { HEDERA_STATE, ROOT, loadHederaState, type HederaDemoState } from "./config";
 import { createAuditTopic, hashscan, operatorClient } from "./hcs";
 import { HEDERA_USDC_TESTNET } from "./facilitator";
+const USDC = process.env.HEDERA_USDC_TOKEN_ID ?? HEDERA_USDC_TESTNET;
 
 const opId = process.env.HEDERA_OPERATOR_ID;
 const opKey = process.env.HEDERA_OPERATOR_KEY;
@@ -76,8 +77,8 @@ if (!state) {
 
 if (fundUsdc > 0n) {
   const tx = await new TransferTransaction()
-    .addTokenTransfer(TokenId.fromString(HEDERA_USDC_TESTNET), AccountId.fromString(opId), -Number(fundUsdc))
-    .addTokenTransfer(TokenId.fromString(HEDERA_USDC_TESTNET), AccountId.fromString(state.agent.accountId), Number(fundUsdc))
+    .addTokenTransfer(TokenId.fromString(USDC), AccountId.fromString(opId), -Number(fundUsdc))
+    .addTokenTransfer(TokenId.fromString(USDC), AccountId.fromString(state.agent.accountId), Number(fundUsdc))
     .execute(client);
   const r = await tx.getReceipt(client);
   console.log(`  ✓ funded agent with ${Number(fundUsdc) / 1e6} USDC (${r.status.toString()})  ${hashscan.tx(tx.transactionId.toString())}`);

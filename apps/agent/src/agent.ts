@@ -245,8 +245,15 @@ async function scenarioH() {
     const r = await fetch(`https://testnet.mirrornode.hedera.com/api/v1/accounts/${st.agent.accountId}`);
     return Number((await r.json()).balance.balance) / 1e8;
   };
+  // the payment asset's balance (HTS token via the mirror node; a few seconds behind consensus)
+  const tokenBal = async () => {
+    if (pricing.asset === "0.0.0") return "";
+    const r = await fetch(`https://testnet.mirrornode.hedera.com/api/v1/accounts/${st.agent.accountId}/tokens?token.id=${pricing.asset}`);
+    const t = ((await r.json()) as { tokens?: { balance: number }[] }).tokens?.[0]?.balance ?? 0;
+    return ` · ${amt(BigInt(t))} (${pricing.asset})`;
+  };
   const m = pricing.mandate;
-  log(`${c.dim}agent account ${st.agent.accountId} · balance ${await hbar()} HBAR · fees are paid by our facilitator · mandate: ≤${amt(m.perPaymentMax)}/payment, ≤${amt(m.dailyCap)}/day, human approval above ${amt(m.approvalAbove)}${c.reset}`);
+  log(`${c.dim}agent account ${st.agent.accountId} · balance ${await hbar()} HBAR${await tokenBal()} · fees are paid by our facilitator · mandate: ≤${amt(m.perPaymentMax)}/payment, ≤${amt(m.dailyCap)}/day, human approval above ${amt(m.approvalAbove)}${c.reset}`);
 
   const byPath = Object.fromEntries(resources.map((r) => [new URL(r.resource).pathname, r]));
   for (let i = 0; i < calls; i++) {
@@ -266,7 +273,8 @@ async function scenarioH() {
     log(res.status === 200 ? `${c.red}  !! premium report was paid without approval${c.reset}` : `${c.yellow}  ✋ ${amt(big.accepts[0].amount)} report refused: ${reasonOf(res)} — above the auto-approve threshold, needs the owner${c.reset}`);
   }
   log(`${c.bold}audit log (HCS topic): ${hashscan.topic(st.topicId)}${c.reset}`);
-  log(`${c.dim}agent balance after: ${await hbar()} HBAR (only the payments left — every network fee was paid by the facilitator)${c.reset}`);
+  await new Promise((res) => setTimeout(res, 5000)); // let the mirror node catch up
+  log(`${c.dim}agent balance after: ${await hbar()} HBAR${await tokenBal()} (only the payments left — every network fee was paid by the facilitator)${c.reset}`);
 }
 
 async function printSession() {

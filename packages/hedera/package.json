@@ -11,7 +11,8 @@
   "scripts": {
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -p .",
-    "bootstrap": "tsx --env-file=../../.env src/setup.ts"
+    "bootstrap": "tsx --env-file=../../.env src/setup.ts",
+    "token": "tsx --env-file=../../.env src/token.ts"
   },
   "dependencies": {
     "@hiero-ledger/sdk": "2.90.1",

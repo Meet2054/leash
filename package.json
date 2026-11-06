@@ -18,6 +18,7 @@
     "owner-signer": "tools/owner-signer/.venv/bin/python tools/owner-signer/falcon_signer.py serve --key keys/owner.json --port 8787",
     "build:falcon-wasm": "bash tools/falcon-wasm/build.sh",
     "hedera:bootstrap": "pnpm --filter @leash/hedera run bootstrap",
+    "hedera:token": "pnpm --filter @leash/hedera run token",
     "verify-log": "pnpm --filter @leash/facilitator run verify-log"
   },
   "devDependencies": {

@@ -18,7 +18,7 @@ export function loadHederaState(): HederaDemoState | undefined {
 }
 
 /**
- * Payment asset for the Hedera endpoints: HEDERA_PAY_ASSET=usdc (HTS USDC 0.0.429274, default) or hbar
+ * Payment asset for the Hedera endpoints: HEDERA_PAY_ASSET=usdc (HTS token HEDERA_USDC_TOKEN_ID, default) or hbar
  * (fallback while the Circle faucet is not paying out). Prices and the mandate scale with the asset.
  * Either way the agent never pays a network fee: our facilitator is the fee payer.
  */
@@ -33,8 +33,9 @@ export function hederaPricing() {
         mandate: { perPaymentMax: 100_000_000n, dailyCap: 2_000_000_000n, approvalAbove: 500_000_000n }, // 1 / 20 / 5 HBAR
       }
     : {
-        asset: "0.0.429274",
-        symbol: "USDC",
+        // HEDERA_USDC_TOKEN_ID: Circle's testnet USDC (0.0.429274) or our self-issued tUSDC (pnpm hedera:token)
+        asset: process.env.HEDERA_USDC_TOKEN_ID ?? "0.0.429274",
+        symbol: (process.env.HEDERA_USDC_TOKEN_ID ?? "0.0.429274") === "0.0.429274" ? "USDC" : "tUSDC",
         decimals: 6,
         prices: { quote: 10_000n, translate: 20_000n, report: 600_000n }, // 0.01 / 0.02 / 0.60 USDC
         mandate: { perPaymentMax: 100_000n, dailyCap: 2_000_000n, approvalAbove: 500_000n }, // 0.10 / 2.00 / 0.50 USDC
