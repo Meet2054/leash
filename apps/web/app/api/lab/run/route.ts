@@ -1,4 +1,4 @@
-import { recycle, runSide, type LabEvent } from "@/lib/server/lab";
+import { prepareLab, recycle, runSide, type LabEvent, type LabInvoice } from "@/lib/server/lab";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -31,9 +31,16 @@ export async function POST(req: Request) {
     async start(ctrl) {
       const emit = (e: LabEvent) => ctrl.enqueue(enc.encode(JSON.stringify(e) + "\n"));
       try {
+        let invoices: LabInvoice[] = [];
+        try {
+          invoices = await prepareLab(emit);
+        } catch (e) {
+          emit({ type: "error", text: `Couldn't set up the inbox: ${e instanceof Error ? e.message : String(e)}` });
+          return;
+        }
         for (const side of sides) {
           try {
-            await runSide(side, choice, emit);
+            await runSide(side, choice, emit, invoices);
           } catch (e) {
             emit({ type: "error", side, text: e instanceof Error ? e.message : String(e) });
           }

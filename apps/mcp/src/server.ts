@@ -244,6 +244,58 @@ server.registerTool(
 );
 
 server.registerTool(
+  "pay_invoice",
+  {
+    title: "Pay a supplier invoice link",
+    description:
+      "Pays a supplier invoice from the owner's vault by its payment link (an x402 URL like https://merchant…/invoices/INV-…). This is how suppliers get paid. The link sets the exact amount and the supplier; the vault only pays suppliers the owner allowed.",
+    inputSchema: { url: z.string().describe("The invoice's payment link, e.g. https://merchant.permissionless.in/invoices/INV-261106-ABC123") },
+  },
+  async ({ url }) => {
+    try {
+      let u: URL;
+      try {
+        u = new URL(url);
+      } catch {
+        return text("That isn't a valid link.");
+      }
+      if (!/^https?:$/.test(u.protocol) || !/^\/invoices\/[A-Za-z0-9-]+\/?$/.test(u.pathname)) return text("That isn't an invoice payment link (expected …/invoices/INV-…).");
+      const v = await vaultView();
+      const s = mySession(v);
+      if (!s) return text(`Refused before paying: this agent isn't authorized on the vault yet (${session.address}).`);
+      const before = await fetch(u);
+      if (before.status === 200) {
+        const b = (await before.json().catch(() => ({}))) as { status?: string; invoice?: { supplier?: string; amountUsdt?: string } };
+        log("pay_invoice", { url }, b.status ?? "200");
+        return text(b.status === "already_paid" ? `Invoice already paid (${b.invoice?.amountUsdt} USDT to ${b.invoice?.supplier}). Nothing charged.` : "The link didn't ask for a payment. Nothing charged.");
+      }
+      if (before.status !== 402) return text(`The link answered HTTP ${before.status}; nothing paid.`);
+      const asked = decodeHeader(before.headers.get("PAYMENT-REQUIRED"))?.accepts?.[0] as { amount?: string; payTo?: string } | undefined;
+      let res: Response;
+      try {
+        res = await payingFetch(BigInt(s.expiry))(u.toString());
+      } catch (e) {
+        const why = refusal(e instanceof Error ? e.message : String(e));
+        log("pay_invoice", { url }, `refused: ${why}`);
+        return text(`Payment refused by Leash: ${why}. Nothing was paid.`);
+      }
+      if (res.status !== 200) {
+        const why = refusal(decodeHeader(res.headers.get("PAYMENT-REQUIRED"))?.error ?? `HTTP ${res.status}`);
+        log("pay_invoice", { url }, `refused: ${why}`);
+        return text(`Payment refused by Leash: ${why}. Nothing was paid.`);
+      }
+      const body = (await res.json().catch(() => ({}))) as { invoice?: { id?: string; supplier?: string; amountUsdt?: string; receiptUrl?: string } };
+      const inv = body.invoice ?? {};
+      const out = `Paid ${inv.amountUsdt ? `${inv.amountUsdt} USDT` : asked?.amount ? usd(asked.amount) : "?"} to ${inv.supplier ?? asked?.payTo} for invoice ${inv.id ?? ""} from the Leash vault on Whitechain (no gas). It settles onchain in the next batch. Receipt: ${inv.receiptUrl ?? ""}`;
+      log("pay_invoice", { url }, { paid: asked?.amount, supplier: inv.supplier });
+      return text(out);
+    } catch (e) {
+      return text(e instanceof Error ? e.message : String(e));
+    }
+  },
+);
+
+server.registerTool(
   "request_more_budget",
   {
     title: "Ask the owner for a higher cap",
@@ -312,7 +364,7 @@ server.registerTool(
   "pay_address",
   {
     title: "Pay any address directly",
-    description: "Attempts to send USDT from the vault to an arbitrary address by opening a payment channel to it.",
+    description: "Attempts to send USDT from the vault to an arbitrary address (one without an invoice payment link) by opening a payment channel to it.",
     inputSchema: { address: z.string(), amount_usdt: z.string() },
   },
   async ({ address, amount_usdt }) => {
