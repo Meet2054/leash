@@ -283,6 +283,25 @@ Open **https://permissionless.in** on your phone.
   - `pay_address(0x…dEaD)` → blocked `MerchantNotAllowed`
   - `change_my_limits(500)` → blocked `WrongPqKey`
 
+## Red team (live, 2026-11-06)
+`apps/agent/src/redteam.ts` attacks the live deployment directly, with no AI in the loop, using an authorized session on a real vault. **11/11 held:**
+
+| Attack | Result |
+|---|---|
+| channel bigger than max per channel | `ExceedsMaxChannel` |
+| channel to an outsider address | `MerchantNotAllowed` |
+| channel that outlives its session | `BadExpiry` |
+| channel signed by an unauthorized key | `UnknownSession` |
+| channel signature replayed from another chain | `not_allowed` |
+| session key sets its own cap to 500 | `WrongPqKey` |
+| … plus a self-forged World approval | `WrongPqKey` |
+| agent pushes its own request through the owner's approval endpoint | refused: no World check |
+| 60 parallel payments from 12 independent clients | nothing committed beyond the cap; conflicting vouchers refused |
+| voucher above the channel lock | `leash_exceeds_locked` |
+| replayed voucher | `leash_insufficient_increment` |
+
+A valid voucher passes the same check (the control), so the refusals are meaningful.
+
 ## Partner API (e.g. the Break-the-Leash arena)
 - **Hosts:** `https://facilitator.permissionless.in` (x402 facilitator + discovery) and `https://merchant.permissionless.in` (paid endpoints). CORS is open.
 - **`x-api-key` lane:**
