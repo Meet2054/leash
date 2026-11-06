@@ -17,7 +17,7 @@ import { Switch } from "@/components/ui/switch";
 
 type Resource = { accepts: { payTo: string; network?: string }[]; resource: string };
 
-export function Onboard(props: { cfg: Config; signer: OwnerSigner | null; signerError?: string; vault: string | null; setVault: (v: string | null) => void }) {
+export function Onboard(props: { cfg: Config; signer: OwnerSigner | null; signerError?: string; vault: string | null; setVault: (v: string | null) => void; onExit?: () => void }) {
   const { signer, cfg } = props;
   const chainId = cfg.chainId;
   const [pubKeyHash, setPubKeyHash] = useState<Hex>();

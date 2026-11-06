@@ -5,44 +5,75 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Leash theme: monochrome — black shades + white, no borders (depth comes from fills and soft shadows).
- * Always dark. Status colours are muted and only used for state (ok / warn / bad).
+ * Leash design system (Figma "Leash — App screens", node 6:428). Light theme: white canvas, white cards
+ * (r22–24, soft blue-tinted shadow), surface #F4F5F9 for tiles and inputs. Blue glow = money, dark #222
+ * cards = identity & big highlights. Geist for everything, Geist Mono for addresses, timers, amounts in code.
+ * Each onboarding step owns a colour and the app reuses it: blue = owner key / money, gold = limits,
+ * green = World ID / approved, red = create vault / freeze / blocked.
  */
 :root {
-  --background: #0a0a0a;
-  --foreground: #fafafa;
-  --card: #141414;
-  --card-foreground: #fafafa;
-  --popover: #171717;
-  --popover-foreground: #fafafa;
-  --primary: #fafafa;
-  --primary-foreground: #0a0a0a;
-  --secondary: #1f1f1f;
-  --secondary-foreground: #fafafa;
-  --muted: #1c1c1c;
-  --muted-foreground: #a3a3a3;
-  --accent: #262626;
-  --accent-foreground: #fafafa;
-  --destructive: #f87171;
-  --border: transparent;
-  --input: #1f1f1f;
-  --ring: rgb(255 255 255 / 0.35);
-  --radius: 0.875rem;
-  --chart-1: #fafafa;
-  --chart-2: #a3a3a3;
-  --chart-3: #737373;
-  --chart-4: #525252;
-  --chart-5: #404040;
+  /* palette (Tokens frame) */
+  --blue: #0643d2;
+  --glow: #25499f;
+  --ink: #111111;
+  --dark: #222222;
+  --body: #5b6070;
+  --muted-ink: #9095a3;
+  --surface: #f4f5f9;
+  --line: #e8eaf0;
+  --white: #ffffff;
+  --green: #096c37;
+  --green-bg: #eefbf3;
+  --red: #930328;
+  --red-bg: #fff0f4;
+  --amber: #a16b08;
+  --amber-bg: #fffdec;
+  --blue-bg: #eef3fe;
+  --blue-tile: #f2f5fd;
+  --addr: #6b7080;
 
-  /* state */
-  --ok: #4ade80;
-  --warn: #fbbf24;
-  --bad: #f87171;
-  /* legacy aliases used by older components */
+  /* shadcn roles */
+  --background: #ffffff;
+  --foreground: var(--ink);
+  --card: #ffffff;
+  --card-foreground: var(--ink);
+  --popover: #ffffff;
+  --popover-foreground: var(--ink);
+  --primary: var(--blue);
+  --primary-foreground: #ffffff;
+  --secondary: var(--surface);
+  --secondary-foreground: var(--ink);
+  --muted: var(--surface);
+  --muted-foreground: var(--body);
+  --accent: #e6edfc;
+  --accent-foreground: var(--ink);
+  --destructive: var(--red);
+  --border: var(--line);
+  --input: var(--surface);
+  --ring: rgb(6 67 210 / 0.35);
+  --radius: 1rem;
+  --chart-1: var(--blue);
+  --chart-2: var(--green);
+  --chart-3: var(--amber);
+  --chart-4: var(--red);
+  --chart-5: var(--muted-ink);
+
+  /* state = the step colours */
+  --ok: var(--green);
+  --warn: var(--amber);
+  --bad: var(--red);
   --color-ok: var(--ok);
   --color-warn: var(--warn);
   --color-bad: var(--bad);
-  --color-brand: #fafafa;
+  --color-brand: var(--blue);
+
+  /* elevation (exact Figma effects) */
+  --shadow-card: 0 10px 30px rgb(5 26 115 / 0.14);
+  --shadow-alert: 0 10px 30px rgb(18 26 64 / 0.1), 0 1px 3px rgb(18 26 64 / 0.04);
+  --shadow-stack: 0 6px 18px rgb(18 26 64 / 0.1);
+  --shadow-nav: 0 8px 28px rgb(18 26 64 / 0.12);
+  --shadow-fab: 0 8px 28px rgb(18 26 64 / 0.22);
+  --shadow-soft: var(--shadow-card);
 }
 
 @theme inline {
@@ -74,38 +105,54 @@
   --color-ok: var(--ok);
   --color-warn: var(--warn);
   --color-bad: var(--bad);
+  --color-blue: var(--blue);
+  --color-glow: var(--glow);
+  --color-ink: var(--ink);
+  --color-dark: var(--dark);
+  --color-body: var(--body);
+  --color-muted-ink: var(--muted-ink);
+  --color-surface: var(--surface);
+  --color-line: var(--line);
+  --color-green: var(--green);
+  --color-green-bg: var(--green-bg);
+  --color-red: var(--red);
+  --color-red-bg: var(--red-bg);
+  --color-amber: var(--amber);
+  --color-amber-bg: var(--amber-bg);
+  --color-blue-bg: var(--blue-bg);
+  --color-blue-tile: var(--blue-tile);
+  --color-addr: var(--addr);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.5), 0 8px 24px rgb(0 0 0 / 0.35);
+  --radius-xl: calc(var(--radius) + 6px);
 }
 
 @layer base {
   * {
     @apply outline-ring/50;
-    border-color: transparent;
+    border-color: var(--line);
   }
   html {
-    color-scheme: dark;
+    color-scheme: light;
     -webkit-tap-highlight-color: transparent;
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "ss01", "cv11";
   }
 }
 
-/* --- small shared helpers (used across components) --- */
 @layer components {
+  /* white card: r22 + soft blue shadow */
   .surface {
-    background: var(--card);
-    border-radius: calc(var(--radius) + 4px);
-    box-shadow: var(--shadow-soft);
+    background: #fff;
+    border-radius: 22px;
+    box-shadow: var(--shadow-card);
   }
+  /* tile / inset well */
   .well {
-    background: #101010;
-    border-radius: var(--radius);
+    background: var(--surface);
+    border-radius: 16px;
   }
   .muted {
     color: var(--muted-foreground);
@@ -117,5 +164,76 @@
   }
   .num {
     font-variant-numeric: tabular-nums;
+  }
+  /* blue glow card (money) */
+  .glow-card {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-radius: 32px;
+    color: #fff;
+    background: radial-gradient(120% 90% at 50% 45%, #2a52b5 0%, #25499f 55%, #8aa0d8 100%);
+  }
+  .glow-card::before {
+    content: "";
+    position: absolute;
+    inset: -12%;
+    z-index: -1;
+    background: radial-gradient(60% 55% at 50% 40%, #25499f 0%, rgb(37 73 159 / 0.85) 55%, rgb(37 73 159 / 0) 100%);
+    filter: blur(37px);
+  }
+  .glow-tile {
+    background: var(--blue-tile);
+    color: var(--ink);
+    border-radius: 16px;
+  }
+  /* dark card (identity & big highlights) */
+  .dark-card {
+    background: var(--dark);
+    color: #fff;
+    border-radius: 32px;
+  }
+  /* 3D icon orbs on alert cards */
+  .orb {
+    display: grid;
+    place-items: center;
+    width: 60px;
+    height: 60px;
+    flex-shrink: 0;
+    border-radius: 999px;
+    color: #fff;
+    box-shadow: inset -2px 3px 5px rgb(255 255 255 / 0.55), inset 2px -3px 6px rgb(0 0 0 / 0.18), 0 8px 14px -2px var(--orb-shadow);
+  }
+  .orb-gold { background: linear-gradient(135deg, #fcbf11, #a16b08); --orb-shadow: rgb(161 107 8 / 0.35); }
+  .orb-red { background: linear-gradient(135deg, #fcb9d9, #930328); --orb-shadow: rgb(147 3 40 / 0.35); }
+  .orb-green { background: linear-gradient(135deg, #8ee6b0, #096c37); --orb-shadow: rgb(9 108 55 / 0.35); }
+  .orb-blue { background: linear-gradient(135deg, #8fb0ff, #0643d2); --orb-shadow: rgb(6 67 210 / 0.35); }
+  /* onboarding step backgrounds (Step themes) */
+  .step-blue { background: linear-gradient(180deg, #0643d2 0%, #5c84dd 100%); --sep: rgb(6 67 210 / 0.55); --sep-dot: #4a77db; --step: #0643d2; --step-bg: #eef3fe; }
+  .step-gold { background: linear-gradient(180deg, #392401 0%, #fcbf11 100%); --sep: rgb(161 107 8 / 0.55); --sep-dot: #9f7509; --step: #a16b08; --step-bg: #fffdec; }
+  .step-green { background: linear-gradient(180deg, #013324 0%, #16c365 100%); --sep: rgb(9 108 55 / 0.55); --sep-dot: #0c7f46; --step: #096c37; --step-bg: #eefbf3; }
+  .step-red { background: linear-gradient(180deg, #dd184c 0%, #fcb9d9 100%); --sep: rgb(147 3 40 / 0.55); --sep-dot: #ed6c96; --step: #930328; --step-bg: #fff0f4; }
+  /* ticket separator between onboarding steps: dashed line with two notches */
+  .ticket-sep {
+    position: relative;
+    height: 0;
+    margin: 0 -20px;
+    border-top: 2.5px dashed var(--sep, rgb(6 67 210 / 0.55));
+  }
+  .ticket-sep::before,
+  .ticket-sep::after {
+    content: "";
+    position: absolute;
+    top: -9px;
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    background: var(--sep-dot, var(--sep, #8ea6e6));
+  }
+  .ticket-sep::before { left: -8px; }
+  .ticket-sep::after { right: -8px; }
+  /* fades the content under the floating nav */
+  .nav-fade {
+    background: linear-gradient(180deg, rgb(255 255 255 / 0) 0%, #fff 70%);
   }
 }
