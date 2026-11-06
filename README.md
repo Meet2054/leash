@@ -26,6 +26,17 @@ AI agents now spend money on their own. Their spending limits are usually enforc
 - x402 batch settlement is live on Solana but thin on EVM L2s, and agent-signed vouchers have no per-request checkpoint.
 - Onchain post-quantum verification costs about 1.5M gas, and Ethereum ranked PQ precompiles C-tier for Hegotá. So the account layer has to carry it, and only cheap L2s like Whitechain make that affordable today. We measured **1.52M gas per ETHFALCON verify, about 0.008 WBT** on Whitechain.
 
+## A real job: AI accounts payable on Whitechain + Hedera
+A Mumbai business lets an AI agent pay its supplier invoices. **Run it yourself: https://permissionless.in/usecase** (one button), or `pnpm agent ap`.
+
+1. **Suppliers send invoices as x402 payment links.** Konkan Cloud Hosting bills 0.40 USDT; Dadar Office Supplies bills 0.25 USDT, **in Marathi**. Each link answers HTTP 402 with the exact amount and the supplier's own address, and a paid link can never be paid twice ([`apps/merchant/src/invoices.ts`](apps/merchant/src/invoices.ts), `GET /invoices/*` in [`app.ts`](apps/merchant/src/app.ts)).
+2. **Hedera: the agent buys an AI translation, per call.** It discovers two translation APIs, compares prices, and buys the cheaper one (0.02 tUSDC vs 0.04). An open model on the merchant's server does the translation ([`ai.ts`](apps/merchant/src/ai.ts)). Our facilitator pays the HBAR fee, and the spend is logged on HCS. Tx [`0.0.11329302@1793993125.878983165`](https://hashscan.io/testnet/transaction/0.0.11329302@1793993125.878983165).
+3. **The agent checks before paying.** The amount in the (translated) invoice must equal what the payment link asks for; a mismatch is flagged for a human, not paid.
+4. **Whitechain: it pays both suppliers in USDT from its Leash vault.** No gas, no seed phrase, one HTTP request each. The relayer settles onchain, and each supplier's receipt (`/receipts/:id`) points at the claim that paid it: [0x920385e5…2995](https://explorer.testnet.whitechain.io/tx/0x920385e51a58b908342ddc746a0e86078c7a17d0ce536ac3063e0f80d6e12995) (Konkan +0.399 USDT) and [0xfed48718…aace](https://explorer.testnet.whitechain.io/tx/0xfed487189901abfe8f3c748f4a050e1217db9954c5d76428624438940aedcace) (Dadar +0.249 USDT). A second run, started from the live web page: [0x32d198e2…ff1c](https://explorer.testnet.whitechain.io/tx/0x32d198e257b4be1ba39e05eed9d05f75eeae5f873f27b301f84f129c84a6ff1c), [0xb9667d31…5301](https://explorer.testnet.whitechain.io/tx/0xb9667d31bb6fc3474718e425eaa8d9f2d4483c5c41eb153d863290ab716b5301).
+5. **The fake "our bank details changed" email is refused by the vault contract** (`MerchantNotAllowed`): the new address isn't one of the owner's suppliers, and only the owner (World ID + their post-quantum key) can add one. Nothing is sent.
+
+Code: [`apps/agent/src/ap.ts`](apps/agent/src/ap.ts). This is the kind of invoice fraud that cost businesses $3.05B in 2025 (FBI IC3), handled by an agent that does the job and still can't be talked into paying a stranger.
+
 ## Live on Whitechain testnet (chain 1874)
 | What | Link |
 |---|---|
@@ -222,6 +233,7 @@ Tests: `pnpm test` (forge 75 tests + vitest).
      - Per-vault and per-merchant **daily op budgets** (HTTP 429), plus **token-bucket rate limits** per IP, session and vault.
      - **Uneconomic claims are deferred** (below 10× the fee unless the channel is about to expire).
      - **Auto-pause** when the tank falls below a minimum, and a `/gas-tank` endpoint.
+- **A business flow, not just a demo payment:** suppliers issue x402 invoice links; the agent pays them in USDT from its vault, gaslessly, and each supplier gets an onchain receipt. A fake supplier address is refused by the contract. See [A real job](#a-real-job-ai-accounts-payable-on-whitechain--hedera).
 - Feedback for the Whitechain team: [`WHITECHAIN_FEEDBACK.md`](WHITECHAIN_FEEDBACK.md).
 
 ### World: World ID Agent Pass
@@ -262,11 +274,13 @@ Tests: `pnpm test` (forge 75 tests + vitest).
 
   The fee (~0.003 HBAR each) was paid by our facilitator `0.0.11329302`. The agent `0.0.11329481` paid exactly the prices.
 - **Spending controls and human approval above a threshold.** The Leash mandate is checked *before* we co-sign: a merchant allowlist, a per-payment max, a daily cap, and **payments above the threshold refused with `leash_human_approval_required`** (the 6 HBAR `/hedera/report` call is refused in the demo).
+- **A real service an agent pays for:** AI translation of regional-language business documents (Marathi, Hindi, Gujarati, Tamil… ↔ English) by an open model, priced per call. The agent compares the two translation APIs and buys the cheaper one ([`0.0.11329302@1793993125.878983165`](https://hashscan.io/testnet/transaction/0.0.11329302@1793993125.878983165), [`0.0.11329302@1793993341.273539494`](https://hashscan.io/testnet/transaction/0.0.11329302@1793993341.273539494)). See [A real job](#a-real-job-ai-accounts-payable-on-whitechain--hedera).
 - **HCS topic as a tamper-evident audit log.** Every facilitator decision (Whitechain channel opens and claims, mandate changes, approvals and denials, Hedera payments settled or refused) is mirrored to topic **[`0.0.11329753`](https://hashscan.io/testnet/topic/0.0.11329753)**. Code: [`packages/hedera/src/hcs.ts`](packages/hedera/src/hcs.ts), [`packages/facilitator/src/audit.ts`](packages/facilitator/src/audit.ts).
 - **Asset (honest status).** The Circle USDC faucet for Hedera never paid out during the event (sender `0.0.11920` stalled). With the mentors' OK we issued our own HTS test stablecoin with `pnpm hedera:token` (tUSDC `0.0.11337141`; treasury = our operator; memo "not Circle USDC"). The code is asset-agnostic: `HEDERA_USDC_TOKEN_ID` selects the token (Circle's `0.0.429274` or ours), and `HEDERA_PAY_ASSET=hbar` falls back to HBAR.
 - **Differences from the Whitechain path:** on Hedera each paid request is its own settlement (no channel batching), and the mandate is enforced by our facilitator, not by an onchain vault.
 
 ## Try it yourself (live, testnet)
+- **Use case:** https://permissionless.in/usecase. One button runs the AI accounts-payable job above on both chains, live.
 - **Attack lab:** https://permissionless.in/lab. The same AI handles the same fake invoice, once without Leash (it pays the attacker) and once with Leash (0 moved), live in your browser. Use our local model or your own API key.
 - **Docs:** https://permissionless.in/docs. Connect your own AI agent (Claude, Cursor, any MCP app) and try to break it.
 

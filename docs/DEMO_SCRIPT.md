@@ -87,6 +87,12 @@ Show the breaker banner in the owner app → tap **Freeze all** (Falcon signatur
 Owner app → **PQ** tab:
 > "Every post-quantum signature Leash has verified onchain: about 1.5M gas each, so we only pay it on rare owner actions, never on the 300 payments."
 
+### + Real job: AI accounts payable on both chains (≤ 40 s; use this as the Hedera segment)
+Open **https://permissionless.in/usecase** → **Run the accounts-payable job**. Narrate while it streams:
+> "A Mumbai business lets an AI pay its suppliers. One invoice is in Marathi, so the agent buys an AI translation on Hedera, picks the cheaper of two APIs, and pays per call; our facilitator pays the fee. Then it pays both suppliers in USDT on Whitechain from its Leash vault, with no gas. The fake 'our bank details changed' email? The vault contract refuses it: that address isn't a supplier."
+
+Click one Whitechain claim link (USDT to the supplier) and the HashScan link (the translation payment). Every party is on screen: suppliers (merchant), agent, relayer (claims), owner (the limits).
+
 ### 2:55–3:15 · Hedera (when M7 is live)
 The x402 endpoint on Hedera settles HTS USDC through our facilitator (HashScan tx), and every channel open, claim, approval and denial is mirrored to an **HCS topic** (HashScan topic page) as a tamper-evident audit log.
 *If M7 isn't done: skip this segment in the Whitechain and World cuts.*
