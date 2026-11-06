@@ -2,6 +2,8 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/client/api";
+import { Button } from "@/components/ui/button";
+import { Pill, Section } from "@/components/leash/kit";
 
 function MockWorld() {
   const id = useSearchParams().get("attempt") ?? "";
@@ -15,21 +17,23 @@ function MockWorld() {
     }
   };
   return (
-    <main className="mx-auto max-w-sm p-6 space-y-4">
-      <div className="card space-y-3 text-center">
-        <div className="pill mx-auto" style={{ color: "var(--color-warn)" }}>MOCKED World ID — offline demo issuer</div>
-        <h1 className="text-lg font-bold">Verify you&apos;re human</h1>
-        <p className="text-sm muted">Stand-in for the World App approval screen. Approving mints a signed ID token (fresh auth_time, proof of personhood) that the Leash backend validates like a real World token. Fake identity: do not rely on it in production.</p>
+    <main className="mx-auto max-w-sm space-y-4 px-4 py-10">
+      <Section title="Verify you're human" description="Stand-in for the World ID app (offline demo). Approving mints a signed ID token that Leash validates like a real World token. Fake identity.">
+        <Pill tone="warn">MOCKED World ID</Pill>
         {!done ? (
-          <div className="flex gap-2 justify-center">
-            <button className="btn btn-primary" onClick={() => decide("approve")}>Approve</button>
-            <button className="btn btn-danger" onClick={() => decide("deny")}>Deny connection</button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="secondary" size="lg" onClick={() => decide("deny")}>
+              Deny
+            </Button>
+            <Button size="lg" onClick={() => decide("approve")}>
+              Approve
+            </Button>
           </div>
         ) : (
-          <div className="font-semibold">{done === "APPROVED" ? "✓ Verified. Return to Leash." : done === "DENIED" ? "✕ Cancelled. Nothing will be signed." : done}</div>
+          <div className="text-[0.9rem] font-medium">{done === "APPROVED" ? "✓ Verified. Return to Leash." : done === "DENIED" ? "✕ Cancelled. Nothing will be signed." : done}</div>
         )}
-        <div className="mono muted">attempt {id}</div>
-      </div>
+        <div className="font-mono text-[0.7rem] text-muted-foreground">attempt {id}</div>
+      </Section>
     </main>
   );
 }

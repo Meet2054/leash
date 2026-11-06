@@ -1,7 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { CheckCircle2, ExternalLink, Hourglass, Loader2, RotateCcw, XCircle } from "lucide-react";
 import { api } from "@/lib/client/api";
+import { Button } from "@/components/ui/button";
+import { Pill } from "./leash/kit";
 
 export type Attempt = {
   attemptId: string;
@@ -19,12 +22,14 @@ export type Attempt = {
   initConfig: { pqPubKeyHash: `0x${string}`; worldSubjectHash: `0x${string}`; verifier: `0x${string}`; initialMandate: `0x${string}` } | null;
   authTime: number | null;
   cooldownUntil?: number | null;
-  serverDecoded?: string[] | null;
   effects?: unknown[] | null;
+  serverDecoded?: string[] | null;
 };
 
-/** Shows the World ID Agent Pass request and polls the backend until the human finishes (or doesn't). */
-export function WorldCheck({ attemptId, onDone }: { attemptId: string; onDone: (a: Attempt) => void }) {
+const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+/** Shows the World ID request and polls the backend until the human finishes (or doesn't). */
+export function WorldCheck({ attemptId, onDone, onRetry }: { attemptId: string; onDone: (a: Attempt) => void; onRetry?: () => void }) {
   const [a, setA] = useState<Attempt>();
   const [left, setLeft] = useState(0);
   useEffect(() => {
@@ -50,44 +55,78 @@ export function WorldCheck({ attemptId, onDone }: { attemptId: string; onDone: (
     const t = setInterval(() => a && setLeft(Math.max(0, (a.status === "COOLDOWN" ? a.cooldownUntil ?? 0 : a.expiresAt) - Math.floor(Date.now() / 1000))), 1000);
     return () => clearInterval(t);
   }, [a]);
-  if (!a) return <div className="muted text-sm">Starting World ID check…</div>;
-  const mocked = a.mode === "mock";
-  return (
-    <div className="soft rounded-xl p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="font-semibold">World ID Agent Pass</div>
-        {mocked ? <span className="pill" style={{ color: "var(--color-warn)" }}>MOCKED issuer</span> : <span className="pill">World IdP</span>}
+
+  if (!a)
+    return (
+      <div className="well flex items-center gap-2 p-4 text-[0.85rem] text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" /> Preparing your World ID request…
       </div>
-      {a.status === "COOLDOWN" ? (
-        <div className="text-sm space-y-1">
-          <div className="font-semibold" style={{ color: "var(--color-warn)" }}>✓ World ID verified · cooldown {left}s before the attestor signs</div>
-          <div className="muted">Large withdrawal: the attestor waits before signing (F8). Press Deny, or apply any post-quantum-signed change (e.g. Freeze all), to cancel it.</div>
+    );
+  const mocked = a.mode === "mock";
+
+  if (a.status === "COOLDOWN")
+    return (
+      <div className="well space-y-1.5 p-4">
+        <div className="flex items-center gap-2 text-[0.9rem] font-medium">
+          <Hourglass className="size-4 text-[var(--warn)]" /> Verified. Safety wait: {mmss(left)}
         </div>
-      ) : a.status === "PENDING" ? (
-        <>
-          <div className="flex gap-4 items-center">
-            {a.verificationUriComplete && (
-              <div className="bg-white p-2 rounded-lg shrink-0">
-                <QRCodeSVG value={a.verificationUriComplete} size={128} />
-              </div>
-            )}
-            <div className="space-y-2 text-sm min-w-0">
-              <div>
-                Code <span className="mono text-base font-bold">{a.userCode}</span>
-              </div>
-              <a className="btn btn-primary inline-block" href={a.verificationUriComplete ?? "#"} target="_blank" rel="noreferrer">
-                {mocked ? "Open mock World check" : "Verify with World"}
-              </a>
-              <div className="muted">Waiting for you to verify… {left}s left</div>
-            </div>
+        <p className="text-[0.8rem] leading-relaxed text-muted-foreground">Large withdrawals wait a few minutes before they can be signed. Press Deny, or freeze your agent, to cancel it.</p>
+      </div>
+    );
+
+  if (a.status !== "PENDING") {
+    const ok = a.status === "APPROVED";
+    return (
+      <div className="well flex items-start gap-3 p-4">
+        {ok ? <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-[var(--ok)]" /> : <XCircle className="mt-0.5 size-5 shrink-0 text-[var(--bad)]" />}
+        <div className="min-w-0 space-y-1">
+          <div className="text-[0.9rem] font-medium">{ok ? "You're verified" : a.status === "EXPIRED" ? "The request expired" : "Not verified"}</div>
+          <div className="text-[0.8rem] text-muted-foreground">{ok ? "World ID confirmed it's you, for this exact change." : `${a.reason ?? ""}. Nothing was signed.`}</div>
+          {!ok && onRetry && (
+            <Button variant="secondary" size="sm" className="mt-1" onClick={onRetry}>
+              <RotateCcw /> Try again
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="well space-y-4 p-4">
+      <div className="flex items-center justify-between">
+        <div className="text-[0.9rem] font-medium">Verify with World ID</div>
+        {mocked ? <Pill tone="warn">MOCKED issuer</Pill> : <Pill>{mmss(left)} left</Pill>}
+      </div>
+      <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+        {a.verificationUriComplete && (
+          <div className="shrink-0 rounded-2xl bg-white p-3">
+            <QRCodeSVG value={a.verificationUriComplete} size={148} />
           </div>
-          {mocked && <p className="text-xs muted">Offline demo mode: a local issuer stands in for World ID. The backend validates its ID token exactly like World&apos;s (signature, issuer, audience, fresh auth_time, proof of personhood).</p>}
-        </>
-      ) : (
-        <div className={`text-sm font-semibold ${a.status === "APPROVED" ? "text-[var(--color-ok)]" : "text-[var(--color-bad)]"}`}>
-          {a.status === "APPROVED" ? "✓ Verified — attestation issued for this exact change" : `✕ ${a.status}: ${a.reason ?? ""} — nothing was signed`}
-        </div>
-      )}
+        )}
+        <ol className="space-y-2 text-[0.82rem] leading-relaxed text-muted-foreground">
+          <li>
+            <span className="text-foreground">1.</span> Tap the button below (on a laptop you can scan the code with your phone instead).
+          </li>
+          <li>
+            <span className="text-foreground">2.</span> Approve in the {mocked ? "mock page" : "World ID app"}.
+          </li>
+          {!mocked && (
+            <li>
+              <span className="text-foreground">3.</span> If you&apos;re asked <span className="text-foreground">&ldquo;Are you a returning user?&rdquo;</span>, choose <span className="text-foreground">No, create an account</span> the first time, and <span className="text-foreground">Yes</span> after that.
+            </li>
+          )}
+        </ol>
+      </div>
+      <Button size="lg" className="w-full" asChild>
+        <a href={a.verificationUriComplete ?? "#"} target="_blank" rel="noreferrer">
+          {mocked ? "Open mock World check" : "Open World ID"} <ExternalLink />
+        </a>
+      </Button>
+      <div className="flex items-center justify-center gap-2 text-[0.75rem] text-muted-foreground">
+        <Loader2 className="size-3.5 animate-spin" /> Waiting for your approval…
+      </div>
+      {mocked && <p className="text-[0.72rem] text-muted-foreground">Offline demo mode: a local issuer stands in for World ID and is validated exactly like World&apos;s.</p>}
     </div>
   );
 }

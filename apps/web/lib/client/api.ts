@@ -47,3 +47,10 @@ export const usdt = (atomic: string | number | bigint | undefined) => {
 };
 export const explorerTx = (h: string) => `https://explorer.testnet.whitechain.io/tx/${h}`;
 export const explorerAddr = (a: string) => `https://explorer.testnet.whitechain.io/address/${a}`;
+
+/** Friendly money: 2 decimals (more only for sub-cent amounts). */
+export const money = (atomic: string | number | bigint | undefined) => {
+  if (atomic === undefined) return "–";
+  const v = Number(BigInt(atomic)) / 1e6;
+  return v !== 0 && Math.abs(v) < 0.01 ? v.toFixed(4) : v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};

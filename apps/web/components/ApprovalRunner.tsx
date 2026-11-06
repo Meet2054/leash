@@ -1,11 +1,15 @@
 "use client";
 import { useState } from "react";
 import { getAddress, type Hex } from "viem";
+import { CheckCircle2, Loader2, ScanFace, XCircle } from "lucide-react";
+import { toast } from "sonner";
 import { canonicalChange, mandateChangeDigest } from "@leash/sdk";
-import { api, explorerTx } from "@/lib/client/api";
+import { api } from "@/lib/client/api";
 import type { OwnerSigner } from "@/lib/client/signer";
+import { Button } from "@/components/ui/button";
 import { WorldCheck, type Attempt } from "./WorldCheck";
 import { DecodePanel, decodingsMatch } from "./DecodePanel";
+import { TxLink } from "./leash/kit";
 
 type WireChange = { action: number; data: Hex; nonce: string; deadline: string };
 const toMsg = (c: WireChange) => ({ action: c.action, data: c.data, nonce: BigInt(c.nonce), deadline: BigInt(c.deadline) });
@@ -27,7 +31,7 @@ export function ApprovalRunner({ approvalId, vault, chainId, signer, onDone }: {
 
   const start = async () => {
     setMsg(undefined);
-    if (!signer) return setMsg("Connect the owner key first (Onboard tab).");
+    if (!signer) return toast.error("Your owner key isn't connected. Open Setup first.");
     try {
       await signer.unlock?.(); // F8.3: passkey prompt while we still have the click's user activation
       const s = await api<{ attemptId: string; change: WireChange; changeHash: string; serverDecoded?: string[] }>(`/api/approvals/${approvalId}/start`, {});
@@ -37,7 +41,7 @@ export function ApprovalRunner({ approvalId, vault, chainId, signer, onDone }: {
       if (mandateChangeDigest(chainId, getAddress(vault), change).toLowerCase() !== s.changeHash.toLowerCase() || !decodingsMatch(s.serverDecoded, local)) {
         await api(`/api/approvals/${approvalId}/deny`, {}).catch(() => undefined);
         setStep("failed");
-        setMsg("The attestor's decoding and this device's decoding differ. Refusing to continue (nothing signed).");
+        setMsg("The server and this device decoded the change differently. Nothing was signed.");
         onDone?.();
         return;
       }
@@ -45,14 +49,15 @@ export function ApprovalRunner({ approvalId, vault, chainId, signer, onDone }: {
       setStep("world");
     } catch (e) {
       setStep("failed");
-      setMsg(e instanceof Error ? e.message : String(e));
+      setMsg(e instanceof Error ? e.message.replace(/^blocked by attestor policy: /, "Blocked by the safety policy: ") : String(e));
+      onDone?.();
     }
   };
 
   const afterWorld = async (a: Attempt) => {
     if (a.status !== "APPROVED" || !a.change) {
       setStep("failed");
-      setMsg(`World check ${a.status.toLowerCase()} — the agent stays capped.`);
+      setMsg(a.status === "EXPIRED" ? "The World ID request expired. Nothing changed." : "World ID wasn't confirmed. Nothing changed; the agent stays capped.");
       onDone?.();
       return;
     }
@@ -69,6 +74,7 @@ export function ApprovalRunner({ approvalId, vault, chainId, signer, onDone }: {
       const r = await api<{ txHash: Hex }>(`/api/approvals/${approvalId}/submit`, { pqPubKey: await signer!.pubKey(), pqSig });
       setTx(r.txHash);
       setStep("done");
+      toast.success("Approved and applied onchain");
     } catch (e) {
       setStep("failed");
       setMsg(e instanceof Error ? e.message : String(e));
@@ -77,25 +83,33 @@ export function ApprovalRunner({ approvalId, vault, chainId, signer, onDone }: {
   };
 
   return (
-    <div className="space-y-2">
-      {step === "idle" && (
-        <button className="btn btn-primary" onClick={start}>
-          Approve with World ID
-        </button>
-      )}
+    <div className="space-y-3">
       {review && step !== "idle" && <DecodePanel server={review.server} local={review.local} />}
+      {step === "idle" && (
+        <Button size="lg" className="w-full" onClick={start}>
+          <ScanFace /> Approve with World ID
+        </Button>
+      )}
       {step === "world" && attemptId && <WorldCheck attemptId={attemptId} onDone={afterWorld} />}
-      {step === "signing" && <div className="text-sm">Signing with your post-quantum (Falcon) key…</div>}
-      {step === "submitting" && <div className="text-sm">Relaying (you pay no gas)…</div>}
-      {step === "done" && tx && (
-        <div className="text-sm font-semibold text-[var(--color-ok)]">
-          ✓ Mandate loosened onchain —{" "}
-          <a className="underline" href={explorerTx(tx)} target="_blank" rel="noreferrer">
-            view tx
-          </a>
+      {(step === "signing" || step === "submitting") && (
+        <div className="well flex items-center gap-2 p-4 text-[0.85rem]">
+          <Loader2 className="size-4 animate-spin" /> {step === "signing" ? "Signing with your post-quantum key…" : "Applying onchain (we pay the gas)…"}
         </div>
       )}
-      {msg && <div className="text-sm text-[var(--color-bad)]">{msg}</div>}
+      {step === "done" && tx && (
+        <div className="well flex items-center justify-between gap-2 p-4">
+          <div className="flex items-center gap-2 text-[0.88rem] font-medium">
+            <CheckCircle2 className="size-5 text-[var(--ok)]" /> Limit updated onchain
+          </div>
+          <TxLink hash={tx} label="View" />
+        </div>
+      )}
+      {step === "failed" && msg && (
+        <div className="well flex items-start gap-2 p-4 text-[0.82rem]">
+          <XCircle className="mt-0.5 size-4 shrink-0 text-[var(--bad)]" />
+          <span>{msg}</span>
+        </div>
+      )}
     </div>
   );
 }

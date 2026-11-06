@@ -255,6 +255,16 @@ Tests: `pnpm test` (forge 71 tests + vitest).
 - **Asset (honest status).** The Circle USDC faucet for Hedera never paid out during the event (sender `0.0.11920` stalled). With the mentors' OK we issued our own HTS test stablecoin with `pnpm hedera:token` (tUSDC `0.0.11337141`; treasury = our operator; memo "not Circle USDC"). The code is asset-agnostic: `HEDERA_USDC_TOKEN_ID` selects the token (Circle's `0.0.429274` or ours), and `HEDERA_PAY_ASSET=hbar` falls back to HBAR.
 - **Differences from the Whitechain path:** on Hedera each paid request is its own settlement (no channel batching), and the mandate is enforced by our facilitator, not by an onchain vault.
 
+## Try it yourself (live, testnet)
+Open **https://permissionless.in** on your phone.
+1. **Setup:** create the in-browser key, keep the default limits (the demo agent, 5 USDT), verify with World ID, then create the vault. Leash pays the gas.
+2. **Limits → Try it with the demo agent:**
+   - **Get 2 test USDT** is a testnet faucet: once per vault, capped per day.
+   - **Let the agent pay for 20 API calls** makes real x402 payments, settled on Whitechain.
+   - **Agent asks for more** files a request in Requests. Approve it with World ID, or deny it.
+   - **Injected agent** sends the Cornell-style 500 USDT ask. The safety policy blocks it before any World check.
+3. **Freeze all** revokes the agent with your key alone, after which the agent can't pay.
+
 ## Deploy (live link)
 - **https://permissionless.in** runs through a Cloudflare Tunnel to the backend host, which runs the owner app + attestor, the facilitator and the merchant.
 - How to run it on any server: [`deploy/cloudflare/README.md`](deploy/cloudflare/README.md). The VPS alternative (Caddy + pm2) is in [`deploy/`](deploy/).
@@ -287,7 +297,7 @@ Tests: `pnpm test` (forge 71 tests + vitest).
   - A compromised attestor alone still can't loosen any vault (see the two-key split).
 
 ## Dependencies (public, open source)
-viem, @x402/core, @x402/fetch, @x402/hono, OpenZeppelin Contracts 5.4, Foundry/forge-std, **ZKNox ETHFALCON** (MIT, contracts + Python reference signer + C signer), ZKNox NTT (polyntt), Next.js, React, Tailwind, Hono, `node:sqlite` (used instead of better-sqlite3, so there is no native build), vitest, jose, qrcode.react, Emscripten (build-time).
+viem, @x402/core, @x402/fetch, @x402/hono, OpenZeppelin Contracts 5.4, Foundry/forge-std, **ZKNox ETHFALCON** (MIT, contracts + Python reference signer + C signer), ZKNox NTT (polyntt), Next.js, React, Tailwind, Hono, `node:sqlite` (used instead of better-sqlite3, so there is no native build), vitest, jose, qrcode.react, Emscripten (build-time). UI: shadcn/ui components (MIT, copied into `apps/web/components/ui`), Radix UI, lucide-react, sonner, `cn`, class-variance-authority, tw-animate-css, Geist / Geist Mono fonts. Hedera: @hiero-ledger/sdk, @x402/hedera.
 
 ## AI usage disclosure
 Claude Code (Anthropic) built most of the code from the spec in [`CLAUDE.md`](CLAUDE.md). The spec was drafted at the start of the hackathon; no code was pre-written. Patterns informed by the team's prior work; all code written during ETHGlobal Mumbai.

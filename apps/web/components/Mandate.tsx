@@ -1,10 +1,17 @@
 "use client";
 import { useState } from "react";
 import { getAddress, isAddress, type Hex } from "viem";
+import { Bot, ChevronDown, Loader2, Snowflake, Store, Wallet, Zap } from "lucide-react";
+import { toast } from "sonner";
 import { encode, mandateChangeDigest, parseUnits6, type Op } from "@leash/sdk";
-import { api, explorerAddr, explorerTx, short, usePoll, usdt } from "@/lib/client/api";
+import { api, explorerTx, money, short, usePoll, usdt } from "@/lib/client/api";
 import type { OwnerSigner } from "@/lib/client/signer";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ApprovalRunner } from "./ApprovalRunner";
+import { DemoPanel } from "./DemoPanel";
+import { Copyable, Field, Meter, Pill, Section, Stat } from "./leash/kit";
 
 export type VaultState = {
   vault: string;
@@ -20,161 +27,246 @@ export type VaultState = {
   merchants?: { address: string; allowed: boolean; dailyCap: string; spentToday: string; maxChannel: string }[];
 };
 
-export function Mandate({ vault, chainId, signer }: { vault: string; chainId: number; signer: OwnerSigner | null }) {
+function Collapsible({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="well">
+      <button className="flex w-full items-center justify-between px-4 py-3 text-[0.88rem] font-medium" onClick={() => setOpen(!open)}>
+        {title}
+        <ChevronDown className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && <div className="space-y-3 px-4 pb-4">{children}</div>}
+    </div>
+  );
+}
+
+export function Mandate({ vault, chainId, signer, demoAgent, goRequests }: { vault: string; chainId: number; signer: OwnerSigner | null; demoAgent?: string | null; goRequests?: () => void }) {
   const { data: v, refresh } = usePoll<VaultState>(`/api/vault/${vault}`, 5000);
   const { data: breaker } = usePoll<{ enabled?: boolean; state?: string; reason?: string; detail?: string; sessionsSeen?: string[]; reopensAt?: number }>(`/api/facilitator/breaker?vault=${vault}`, 3000);
   const [busy, setBusy] = useState<string>();
-  const [msg, setMsg] = useState<{ ok: boolean; text: string; tx?: string }>();
   const [pendingApproval, setPendingApproval] = useState<string>();
+  const [capEdit, setCapEdit] = useState<Record<string, string>>({});
   const [form, setForm] = useState({ session: "", cap: "5", hours: "24", merchant: "", daily: "10", max: "1", withdrawTo: "", withdrawAmt: "1" });
 
   /** Tightening → PQ signature only. Loosening → owner approval with World ID. */
   const submit = async (op: Op, label: string) => {
-    setMsg(undefined);
-    if (!signer) return setMsg({ ok: false, text: "Owner key not connected." });
+    if (!signer) return toast.error("Your owner key isn't connected. Open Setup first.");
     try {
-      setBusy(`Preparing: ${label}`);
+      await signer.unlock?.();
+      setBusy(label);
       const p = await api<{ change: { action: number; data: Hex; nonce: string; deadline: string }; digest: Hex; loosening: boolean }>("/api/changes/prepare", { vault, action: op.action, data: op.data });
       if (p.loosening) {
         const r = await api<{ id: string }>("/api/approvals", { vault, op, reason: `Owner edit: ${label}` });
         setPendingApproval(r.id);
         setBusy(undefined);
+        toast("This loosens a limit, so it needs World ID. Approve it below.");
         return;
       }
       const change = { action: p.change.action, data: p.change.data, nonce: BigInt(p.change.nonce), deadline: BigInt(p.change.deadline) };
       const digest = mandateChangeDigest(chainId, getAddress(vault), change);
       if (digest !== p.digest) throw new Error("digest mismatch");
-      setBusy("Signing with your Falcon key (tightening: no World check needed)…");
       const pqSig = await signer.sign(digest, label);
-      setBusy("Relaying…");
       const r = await api<{ txHash: string }>("/api/changes/submit", { vault, change: p.change, pqPubKey: await signer.pubKey(), pqSig });
-      setMsg({ ok: true, text: `${label} — done`, tx: r.txHash });
+      toast.success(`${label}: done`, { action: { label: "View", onClick: () => window.open(explorerTx(r.txHash), "_blank") } });
       refresh();
     } catch (e) {
-      setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });
+      toast.error(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(undefined);
     }
   };
 
-  if (!v) return <div className="card muted">Loading vault…</div>;
-  if (!v.deployed) return <div className="card">Vault not deployed yet. Balance waiting: {usdt(v.balance)} USDT</div>;
+  if (!v)
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-36 rounded-2xl" />
+        <Skeleton className="h-48 rounded-2xl" />
+      </div>
+    );
+  if (!v.deployed)
+    return (
+      <Section icon={<Wallet className="size-5" />} title="Vault not created yet" description="Finish Setup to create it.">
+        <div className="text-[0.85rem]">Waiting deposit: <span className="num font-semibold">{usdt(v.balance)} USDT</span></div>
+      </Section>
+    );
   const now = Date.now() / 1000;
+  const live = (v.sessions ?? []).filter((s) => !s.revoked);
 
   return (
-    <div className="space-y-4">
-      <section className="card grid grid-cols-3 gap-2 text-center">
-        <div><div className="text-xl font-bold">{usdt(v.balance)}</div><div className="text-xs muted">USDT in vault</div></div>
-        <div><div className="text-xl font-bold">{usdt(v.free)}</div><div className="text-xs muted">free</div></div>
-        <div><div className="text-xl font-bold">{usdt(v.locked)}</div><div className="text-xs muted">locked in channels</div></div>
-        <div className="col-span-3 text-xs muted">
-          <a className="mono underline" href={explorerAddr(vault)} target="_blank" rel="noreferrer">{vault}</a> · mandate nonce {v.nonce}
+    <div className="space-y-3">
+      <div className="px-1">
+        <h1 className="text-2xl font-semibold tracking-tight">Limits</h1>
+        <p className="mt-1 text-[0.85rem] text-muted-foreground">Lowering a limit or freezing your agent needs only your key. Raising one needs World ID too.</p>
+      </div>
+
+      <Section>
+        <div className="pt-1">
+          <div className="text-[0.78rem] text-muted-foreground">In your vault</div>
+          <div className="num text-4xl font-semibold tracking-tight">
+            {money(v.balance)} <span className="text-lg font-medium text-muted-foreground">USDT</span>
+          </div>
         </div>
-      </section>
+        <div className="grid grid-cols-2 gap-2">
+          <Stat value={money(v.free)} label="Free to spend" />
+          <Stat value={money(v.locked)} label="Reserved for open payments" />
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Copyable value={vault} />
+          <a className="text-[0.78rem] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline" href={`https://explorer.testnet.whitechain.io/address/${vault}`} target="_blank" rel="noreferrer">
+            View on explorer ↗
+          </a>
+        </div>
+      </Section>
+
+      <DemoPanel vault={vault} balance={v.balance} hasDemoAgent={Boolean(demoAgent && v.sessions?.some((s) => s.address.toLowerCase() === demoAgent.toLowerCase()))} onChange={refresh} goRequests={goRequests} />
 
       {breaker?.state === "open" && (
-        <section className="card space-y-2" style={{ borderColor: "var(--color-bad)" }}>
-          <h2 className="font-semibold" style={{ color: "var(--color-bad)" }}>⚡ Circuit breaker tripped</h2>
-          <p className="text-sm">{breaker.detail}. All spending from this vault is stopped{breaker.reopensAt ? ` until ${new Date(breaker.reopensAt).toLocaleTimeString()}` : ""}.</p>
-          <p className="text-xs muted">Freezing revokes every session involved. It only tightens, so your Falcon key is enough — no World check.</p>
-          <button
-            className="btn btn-danger"
+        <Section icon={<Zap className="size-5 text-[var(--bad)]" />} title="Spending stopped automatically" description={`${breaker.detail}. All payments from this vault are paused${breaker.reopensAt ? ` until ${new Date(breaker.reopensAt).toLocaleTimeString()}` : ""}.`}>
+          <Button
+            variant="destructive"
+            size="lg"
+            className="w-full"
             disabled={!!busy}
             onClick={() => {
               const s = (breaker.sessionsSeen ?? []).filter((x) => v?.sessions?.some((y) => y.address.toLowerCase() === x.toLowerCase() && !y.revoked));
               const ops = s.map((x) => encode.revokeSession(getAddress(x)));
-              if (ops.length) submit(ops.length === 1 ? ops[0] : encode.batch(ops), `Freeze ${ops.length} session(s)`);
+              if (ops.length) submit(ops.length === 1 ? ops[0] : encode.batch(ops), `Freeze ${ops.length} agent(s)`);
             }}
           >
-            Freeze involved sessions
-          </button>
-        </section>
+            <Snowflake /> Freeze the agents involved
+          </Button>
+        </Section>
       )}
 
-      <section className="card space-y-2">
-        <div className="flex justify-between items-center">
-          <h2 className="font-semibold">Agent sessions</h2>
-          <button
-            className="btn btn-danger"
-            disabled={!!busy || !v.sessions?.some((s) => !s.revoked)}
+      <Section
+        icon={<Bot className="size-5" />}
+        title="Agents"
+        description="Each agent has its own cap and expiry."
+        action={
+          <Button
+            variant="destructive"
+            size="sm"
+            disabled={!!busy || live.length === 0}
             onClick={() => {
-              const ops = (v.sessions ?? []).filter((s) => !s.revoked).map((s) => encode.revokeSession(getAddress(s.address)));
-              if (ops.length) submit(ops.length === 1 ? ops[0] : encode.batch(ops), `Freeze all (${ops.length} session(s))`);
+              const ops = live.map((s) => encode.revokeSession(getAddress(s.address)));
+              if (ops.length) submit(ops.length === 1 ? ops[0] : encode.batch(ops), `Freeze all (${ops.length})`);
             }}
           >
-            Freeze all
-          </button>
-        </div>
+            <Snowflake /> Freeze all
+          </Button>
+        }
+      >
+        {(v.sessions ?? []).length === 0 && <div className="well p-3 text-[0.82rem] text-muted-foreground">No agents yet.</div>}
         {v.sessions?.map((s) => {
-          const live = !s.revoked && Number(s.expiry) > now;
+          const active = !s.revoked && Number(s.expiry) > now;
+          const used = BigInt(s.spent) + BigInt(s.locked);
           return (
-            <div key={s.address} className="soft rounded-xl p-3 text-sm space-y-1">
-              <div className="flex justify-between items-center">
-                <span className="mono">{short(s.address)}</span>
-                <span className="pill" style={{ color: live ? "var(--color-ok)" : "var(--color-bad)" }}>{s.revoked ? "revoked" : live ? "active" : "expired"}</span>
+            <div key={s.address} className="well space-y-3 p-3.5">
+              <div className="flex items-center justify-between gap-2">
+                <Copyable value={s.address} />
+                <Pill tone={active ? "ok" : "bad"}>{s.revoked ? "Revoked" : active ? "Active" : "Expired"}</Pill>
               </div>
-              <div>
-                cap <b>{usdt(s.cap)}</b> · spent {usdt(s.spent)} · locked {usdt(s.locked)} · until {new Date(Number(s.expiry) * 1000).toLocaleString()}
+              <div className="space-y-1.5">
+                <div className="flex items-baseline justify-between text-[0.82rem]">
+                  <span className="text-muted-foreground">Used</span>
+                  <span className="num">
+                    <span className="font-semibold">{money(used)}</span> <span className="text-muted-foreground">of {money(s.cap)} USDT</span>
+                  </span>
+                </div>
+                <Meter value={used} max={BigInt(s.cap)} />
+                <div className="text-[0.72rem] text-muted-foreground">Expires {new Date(Number(s.expiry) * 1000).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</div>
               </div>
               {!s.revoked && (
-                <div className="flex gap-2 flex-wrap">
-                  <button className="btn btn-danger" disabled={!!busy} onClick={() => submit(encode.revokeSession(getAddress(s.address)), `Revoke session ${short(s.address)}`)}>Revoke</button>
-                  <input className="input w-24" value={form.cap} onChange={(e) => setForm({ ...form, cap: e.target.value })} />
-                  <button className="btn" disabled={!!busy} onClick={() => submit(encode.setSessionLimits(getAddress(s.address), BigInt(s.expiry), parseUnits6(form.cap)), `Set session cap to ${form.cap} USDT`)}>Set cap</button>
+                <div className="flex gap-2">
+                  <Input className="h-10" inputMode="decimal" placeholder="New cap" value={capEdit[s.address] ?? ""} onChange={(e) => setCapEdit({ ...capEdit, [s.address]: e.target.value })} />
+                  <Button variant="secondary" disabled={!!busy || !capEdit[s.address]} onClick={() => submit(encode.setSessionLimits(getAddress(s.address), BigInt(s.expiry), parseUnits6(capEdit[s.address])), `Set cap to ${capEdit[s.address]} USDT`)}>
+                    Set cap
+                  </Button>
+                  <Button variant="destructive" disabled={!!busy} onClick={() => submit(encode.revokeSession(getAddress(s.address)), `Revoke agent ${short(s.address)}`)}>
+                    Revoke
+                  </Button>
                 </div>
               )}
             </div>
           );
         })}
-        <div className="grid grid-cols-3 gap-2 text-sm pt-2">
-          <input className="input mono col-span-3" placeholder="new session address 0x…" value={form.session} onChange={(e) => setForm({ ...form, session: e.target.value })} />
-          <input className="input" value={form.cap} onChange={(e) => setForm({ ...form, cap: e.target.value })} title="cap USDT" />
-          <input className="input" value={form.hours} onChange={(e) => setForm({ ...form, hours: e.target.value })} title="hours" />
-          <button className="btn" disabled={!!busy || !isAddress(form.session)} onClick={() => submit(encode.addSession(getAddress(form.session), BigInt(Math.floor(now + Number(form.hours) * 3600)), parseUnits6(form.cap)), "Add session")}>Add session</button>
-        </div>
-      </section>
+      </Section>
 
-      <section className="card space-y-2">
-        <h2 className="font-semibold">Allowed merchants</h2>
+      <Section icon={<Store className="size-5" />} title="Allowed merchants" description="Your agent can only pay these.">
         {v.merchants?.map((m) => (
-          <div key={m.address} className="soft rounded-xl p-3 text-sm flex justify-between items-center gap-2 flex-wrap">
-            <div>
-              <span className="mono">{short(m.address)}</span>{" "}
-              {m.allowed ? <span className="pill" style={{ color: "var(--color-ok)" }}>allowed</span> : <span className="pill">removed</span>}
-              <div className="muted">daily {usdt(m.dailyCap)} (today {usdt(m.spentToday)}) · max/channel {usdt(m.maxChannel)}</div>
+          <div key={m.address} className="well flex items-center justify-between gap-3 p-3.5">
+            <div className="min-w-0 space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[0.78rem]">{short(m.address)}</span>
+                {m.allowed ? <Pill tone="ok">Allowed</Pill> : <Pill>Removed</Pill>}
+              </div>
+              <div className="text-[0.72rem] text-muted-foreground">
+                Today {usdt(m.spentToday)} / {usdt(m.dailyCap)} USDT · max {usdt(m.maxChannel)} per channel
+              </div>
             </div>
-            {m.allowed && <button className="btn btn-danger" disabled={!!busy} onClick={() => submit(encode.removeMerchant(getAddress(m.address)), `Remove merchant ${short(m.address)}`)}>Remove</button>}
+            {m.allowed && (
+              <Button variant="ghost" size="sm" disabled={!!busy} onClick={() => submit(encode.removeMerchant(getAddress(m.address)), `Remove merchant ${short(m.address)}`)}>
+                Remove
+              </Button>
+            )}
           </div>
         ))}
-        <div className="grid grid-cols-3 gap-2 text-sm pt-2">
-          <input className="input mono col-span-3" placeholder="merchant address 0x…" value={form.merchant} onChange={(e) => setForm({ ...form, merchant: e.target.value })} />
-          <input className="input" value={form.daily} onChange={(e) => setForm({ ...form, daily: e.target.value })} title="daily cap" />
-          <input className="input" value={form.max} onChange={(e) => setForm({ ...form, max: e.target.value })} title="max per channel" />
-          <button className="btn" disabled={!!busy || !isAddress(form.merchant)} onClick={() => submit(encode.setMerchant(getAddress(form.merchant), parseUnits6(form.daily), parseUnits6(form.max)), "Set merchant limits")}>Set limits</button>
-        </div>
-      </section>
+      </Section>
 
-      <section className="card space-y-2">
-        <h2 className="font-semibold">Withdraw</h2>
-        <div className="grid grid-cols-3 gap-2 text-sm">
-          <input className="input mono col-span-2" placeholder="to 0x…" value={form.withdrawTo} onChange={(e) => setForm({ ...form, withdrawTo: e.target.value })} />
-          <input className="input" value={form.withdrawAmt} onChange={(e) => setForm({ ...form, withdrawAmt: e.target.value })} />
-          <button className="btn col-span-3" disabled={!!busy || !isAddress(form.withdrawTo)} onClick={() => submit(encode.withdraw(getAddress(form.withdrawTo), parseUnits6(form.withdrawAmt)), `Withdraw ${form.withdrawAmt} USDT`)}>Withdraw (needs World ID)</button>
+      <Collapsible title="Add an agent">
+        <Field label="Agent session address">
+          <Input className="font-mono text-[0.8rem]" placeholder="0x…" value={form.session} onChange={(e) => setForm({ ...form, session: e.target.value })} />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Cap (USDT)">
+            <Input inputMode="decimal" value={form.cap} onChange={(e) => setForm({ ...form, cap: e.target.value })} />
+          </Field>
+          <Field label="Valid for (hours)">
+            <Input inputMode="numeric" value={form.hours} onChange={(e) => setForm({ ...form, hours: e.target.value })} />
+          </Field>
         </div>
-      </section>
+        <Button className="w-full" disabled={!!busy || !isAddress(form.session)} onClick={() => submit(encode.addSession(getAddress(form.session), BigInt(Math.floor(now + Number(form.hours) * 3600)), parseUnits6(form.cap)), "Add agent")}>
+          Add agent (needs World ID)
+        </Button>
+      </Collapsible>
+
+      <Collapsible title="Allow a merchant">
+        <Field label="Merchant address">
+          <Input className="font-mono text-[0.8rem]" placeholder="0x…" value={form.merchant} onChange={(e) => setForm({ ...form, merchant: e.target.value })} />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Daily cap (USDT)">
+            <Input inputMode="decimal" value={form.daily} onChange={(e) => setForm({ ...form, daily: e.target.value })} />
+          </Field>
+          <Field label="Max per channel">
+            <Input inputMode="decimal" value={form.max} onChange={(e) => setForm({ ...form, max: e.target.value })} />
+          </Field>
+        </div>
+        <Button className="w-full" disabled={!!busy || !isAddress(form.merchant)} onClick={() => submit(encode.setMerchant(getAddress(form.merchant), parseUnits6(form.daily), parseUnits6(form.max)), "Set merchant limits")}>
+          Save merchant
+        </Button>
+      </Collapsible>
+
+      <Collapsible title="Withdraw USDT">
+        <Field label="Send to">
+          <Input className="font-mono text-[0.8rem]" placeholder="0x…" value={form.withdrawTo} onChange={(e) => setForm({ ...form, withdrawTo: e.target.value })} />
+        </Field>
+        <Field label="Amount (USDT)" hint="Withdrawals need World ID; large ones also wait a few minutes for safety.">
+          <Input inputMode="decimal" value={form.withdrawAmt} onChange={(e) => setForm({ ...form, withdrawAmt: e.target.value })} />
+        </Field>
+        <Button className="w-full" disabled={!!busy || !isAddress(form.withdrawTo)} onClick={() => submit(encode.withdraw(getAddress(form.withdrawTo), parseUnits6(form.withdrawAmt)), `Withdraw ${form.withdrawAmt} USDT`)}>
+          Withdraw
+        </Button>
+      </Collapsible>
 
       {pendingApproval && (
-        <section className="card space-y-2 border-[var(--color-brand)]">
-          <h2 className="font-semibold">This change loosens your mandate</h2>
-          <p className="text-sm muted">It needs a fresh World ID check plus your Falcon signature.</p>
+        <Section title="Confirm this change" description="It loosens a limit, so it needs a fresh World ID check and your key.">
           <ApprovalRunner approvalId={pendingApproval} vault={vault} chainId={chainId} signer={signer} onDone={refresh} />
-        </section>
+        </Section>
       )}
-      {busy && <div className="text-sm">{busy}</div>}
-      {msg && (
-        <div className={`text-sm ${msg.ok ? "text-[var(--color-ok)]" : "text-[var(--color-bad)]"}`}>
-          {msg.text}{" "}
-          {msg.tx && <a className="underline" href={explorerTx(msg.tx)} target="_blank" rel="noreferrer">view tx</a>}
+      {busy && (
+        <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+84px)] z-40 mx-auto flex w-fit items-center gap-2 rounded-full bg-primary px-4 py-2 text-[0.8rem] font-medium text-primary-foreground shadow-[var(--shadow-soft)]">
+          <Loader2 className="size-4 animate-spin" /> {busy}…
         </div>
       )}
     </div>

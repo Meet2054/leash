@@ -6,8 +6,8 @@ const esc = (x: string) => x.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&
 const page = (title: string, body: string, ok: boolean) =>
   new Response(
     `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Leash · World ID</title>
-<style>body{font-family:system-ui,sans-serif;background:#0b0b10;color:#e8e8ee;display:grid;place-items:center;min-height:100vh;margin:0;padding:16px}
-.c{max-width:420px;background:#16161f;border-radius:16px;padding:24px}h1{font-size:20px;color:${ok ? "#4ade80" : "#f87171"}}p{color:#a1a1b5;line-height:1.5}a{color:#818cf8}</style></head>
+<style>body{font-family:ui-sans-serif,system-ui,sans-serif;background:#0a0a0a;color:#fafafa;display:grid;place-items:center;min-height:100vh;margin:0;padding:16px}
+.c{max-width:420px;background:#141414;border-radius:20px;padding:24px;box-shadow:0 8px 24px rgba(0,0,0,.4)}h1{font-size:20px;color:${ok ? "#4ade80" : "#f87171"}}p{color:#a3a3a3;line-height:1.5}a{color:#fafafa}</style></head>
 <body><div class="c"><h1>${esc(title)}</h1><p>${esc(body)}</p><p><a href="/">Back to Leash</a></p></div></body></html>`,
     { status: 200, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } },
   );

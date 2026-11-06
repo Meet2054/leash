@@ -222,6 +222,39 @@ export function createApp(ctx: FacilitatorContext) {
     c.json(ctx.store.claims(Number(c.req.query("limit") ?? 100)).map((r) => ({ ...r, explorerUrl: EXPLORERS[r.chain_id]?.tx(r.tx) }))),
   );
 
+  // ---------------------------------------------------------------- demo faucet (testnet only, DEMO_FAUCET=1)
+  // Lets a judge or tester who just onboarded try the agent. The relayer sends a fixed amount of testnet USDT
+  // to a verified Leash vault: once per vault, capped per day.
+  app.post("/demo/faucet", async (c) => {
+    if (process.env.DEMO_FAUCET !== "1") return c.json({ error: "disabled" }, 404);
+    const b = (await c.req.json().catch(() => ({}))) as { vault?: string };
+    if (!b.vault || !isAddress(b.vault)) return c.json({ error: "bad_vault" }, 400);
+    const vault = getAddress(b.vault);
+    if (!(await ctx.isLeashVault(vault))) return c.json({ error: "not_a_leash_vault", message: "Create your vault first." }, 400);
+    const db = ctx.store.db;
+    db.exec("CREATE TABLE IF NOT EXISTS faucet_grants (vault TEXT PRIMARY KEY, at INTEGER NOT NULL, tx TEXT)");
+    const now = Math.floor(Date.now() / 1000);
+    const used = (db.prepare("SELECT COUNT(*) AS n FROM faucet_grants WHERE at > ?").get(now - 86_400) as { n: number }).n;
+    if (used >= Number(process.env.DEMO_FAUCET_DAILY ?? 15)) return c.json({ error: "faucet_daily_limit", message: "The demo faucet is empty for today." }, 429);
+    const amount = BigInt(process.env.DEMO_FAUCET_AMOUNT ?? "2000000");
+    // reserve first, so concurrent requests can't double-fund the same vault
+    try {
+      db.prepare("INSERT INTO faucet_grants (vault, at) VALUES (?, ?)").run(vault.toLowerCase(), now);
+    } catch {
+      return c.json({ error: "already_funded", message: "This vault already received demo USDT." }, 429);
+    }
+    try {
+      const data = encodeFunctionData({ abi: [{ type: "function", name: "transfer", stateMutability: "nonpayable", inputs: [{ type: "address" }, { type: "uint256" }], outputs: [{ type: "bool" }] }], functionName: "transfer", args: [vault, amount] });
+      const r = await ctx.relayer.send({ to: ctx.cfg.deployment.token, data, label: "demoFaucet" });
+      db.prepare("UPDATE faucet_grants SET tx = ? WHERE vault = ?").run(r.hash, vault.toLowerCase());
+      await ctx.audit.publish({ kind: "DemoFaucet", chainId: ctx.cfg.chain.id, vault, amount: amount.toString(), tx: r.hash });
+      return c.json({ tx: r.hash, amount: amount.toString(), explorerUrl: EXPLORERS[ctx.cfg.chain.id]?.tx(r.hash) });
+    } catch (e) {
+      db.prepare("DELETE FROM faucet_grants WHERE vault = ? AND tx IS NULL").run(vault.toLowerCase());
+      return fail(c, e);
+    }
+  });
+
   app.post("/admin/batch", async (c) => {
     if (ctx.cfg.adminToken && c.req.header("authorization") !== `Bearer ${ctx.cfg.adminToken}`) return c.json({ error: "unauthorized" }, 401);
     const txs = await ctx.engine.runBatch(c.req.query("force") === "true");

@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { createPublicClient, http, type Abi, type Address, type Chain, type Hex, type PublicClient } from "viem";
+import { createPublicClient, getAddress, http, type Abi, type Address, type Chain, type Hex, type PublicClient } from "viem";
 import type { PaymentPayload, PaymentRequirements, SchemeNetworkFacilitator } from "@x402/core/types";
 import { x402Facilitator } from "@x402/core/facilitator";
 import { LEASH_SCHEME, leashFactoryAbi, leashVaultAbi, type LeashExtra } from "@leash/sdk";
@@ -89,11 +89,16 @@ export function createContext(cfg: FacilitatorConfig): FacilitatorContext {
       return false;
     }
   };
+  // DEMO_FAUCET=1 adds exactly one target: USDT.transfer, used only by the /demo/faucet route, which builds
+  // the calldata itself (fixed amount, recipient = a verified Leash vault). Nothing user-supplied is relayed there.
+  const demoFaucet = process.env.DEMO_FAUCET === "1";
+  const relayAllow = async (to: Address, selector: Hex) =>
+    (demoFaucet && getAddress(to) === getAddress(cfg.deployment.token) && selector === "0xa9059cbb") || allow(to, selector);
   const relayer = new Relayer({
     chain: cfg.chain,
     rpcUrl: cfg.rpcUrl,
     privateKey: cfg.relayerKey,
-    allow,
+    allow: relayAllow,
     errorAbis: [leashVaultAbi as Abi, leashFactoryAbi as Abi],
     gasFloorGwei: cfg.gasFloorGwei ?? "5",
     minBalanceWei: cfg.relayerMinBalanceWei,
