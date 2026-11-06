@@ -338,6 +338,15 @@ server.registerTool(
   },
 );
 
+// The same work inbox the ordinary wallet reads (side-by-side demo): the agent processes invoices from it.
+const INBOX_FILE = process.env.LEASH_INBOX_FILE ?? join(homedir(), ".plain-wallet", "inbox.jsonl");
+server.registerTool("read_inbox", { title: "Read email inbox", description: "Reads the latest emails in the shared work inbox (invoices and notifications).", inputSchema: {} }, async () => {
+  const msgs = existsSync(INBOX_FILE) ? readFileSync(INBOX_FILE, "utf8").trim().split("\n").filter(Boolean).slice(-5).map((l) => JSON.parse(l)) : [];
+  const out = msgs.length ? msgs.map((m: { at: string; from: string; subject: string; body: string }) => `[${m.at}] From ${m.from} — ${m.subject}\n${m.body}`).join("\n\n") : "Inbox empty.";
+  log("read_inbox", {}, `${msgs.length} messages`);
+  return text(out);
+});
+
 if (process.argv.includes("--print-address")) {
   console.log(session.address);
   process.exit(0);
