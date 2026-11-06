@@ -1,0 +1,1 @@
+{ "mcpServers": { "leash": { "command": "/Users/adi-21/workspace/hackm/apps/mcp/bin/leash-mcp", "env": { "LEASH_VAULT": "0x94a88f031C2756b32212F8e68aB7ec3C29f67c8c" } } } }
