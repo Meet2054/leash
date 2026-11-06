@@ -15,14 +15,14 @@ pnpm install
 pnpm facilitator &          # :4021
 pnpm merchant &             # :4022
 pnpm --filter @leash/web build
-APP_URL=https://leash.permissionless.in \
-WORLD_FLOW=browser WORLD_REDIRECT_URI=https://leash.permissionless.in/api/world/callback \
+APP_URL=https://permissionless.in \
+WORLD_FLOW=browser WORLD_REDIRECT_URI=https://permissionless.in/api/world/callback \
 BIND_HOST=127.0.0.1 pnpm --filter @leash/web start   # :3000, only reachable through the tunnel
 
 # 2. edge
 cloudflared tunnel --config ~/.cloudflared/leash.yml run leash    # see tunnel.example.yml
 ```
-- Register `https://leash.permissionless.in/api/world/callback` as the redirect URI of the World IdP app (sandbox portal).
+- Register `https://permissionless.in/api/world/callback` as the redirect URI of the World IdP app (sandbox portal).
 - `deploy/bootstrap.sh` does the same on a fresh VPS with Caddy + pm2, if you'd rather not use a tunnel.
 
 ## Moving the backend to a server

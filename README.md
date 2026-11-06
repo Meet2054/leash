@@ -23,7 +23,7 @@ AI agents now spend money on their own. Their spending limits are usually enforc
 | LeashFactory (verified) | [0x7541…3C66](https://explorer.testnet.whitechain.io/address/0x754180420d905DbE4A92990C39b22F7373393C66) |
 | LeashVault implementation (verified) | [0x3B0E…B306](https://explorer.testnet.whitechain.io/address/0x3B0E1F9450203a542f7DC644e58F5CDf13cDB306) |
 | Reproducible deploy record | [`contracts/deployments/1874.json`](contracts/deployments/1874.json): deploy txs, solc 0.8.25, `evm_version = cancun`, ZKNox `43ac863`, deployed from git commit `41ea8f9` (contract sources `ae2bcd2`). The live bytecode of all 4 contracts **exactly matches** a local build of that commit (immutables masked; `node scripts/record-deploy.mjs`) |
-| **Live app** | **https://leash.permissionless.in** (Cloudflare Tunnel → backend; see "Deploy") |
+| **Live app** | **https://permissionless.in** (Cloudflare Tunnel → backend; see "Deploy") |
 | **Vault created after a REAL World ID check** (World IdP sandbox, orb, browser flow) | [0x04dd…8d23](https://explorer.testnet.whitechain.io/tx/0x04dd758ae43fc97dc1354df60267ca6254ab7999571eef1252237412a0738d23) → vault [0x45A1…5F06](https://explorer.testnet.whitechain.io/address/0x45A14B41D527d2Ea138dcf86C3f60cD2d27c5F06) |
 | **Agent's cap raised 5 → 8 after a REAL World ID check** + Falcon signature (1.65M gas) | [0xf714…28f9](https://explorer.testnet.whitechain.io/tx/0xf714cb0b65f62a3a2b9ee690fcbd00158fa9a68cf526bf5bb9a5866445ba28f9) |
 | Vault created, Falcon signature checked onchain (1.90M gas; CLI vault, World **MOCKED**) | [0x8229…d298](https://explorer.testnet.whitechain.io/tx/0x82290b8eddfaba7b3ed963520edb0c0bbab77fe3eeb1297fb4a34dd27853d298) |
@@ -256,7 +256,7 @@ Tests: `pnpm test` (forge 71 tests + vitest).
 - **Differences from the Whitechain path:** on Hedera each paid request is its own settlement (no channel batching), and the mandate is enforced by our facilitator, not by an onchain vault.
 
 ## Deploy (live link)
-- **https://leash.permissionless.in** runs through a Cloudflare Tunnel to the backend host, which runs the owner app + attestor, the facilitator and the merchant.
+- **https://permissionless.in** runs through a Cloudflare Tunnel to the backend host, which runs the owner app + attestor, the facilitator and the merchant.
 - How to run it on any server: [`deploy/cloudflare/README.md`](deploy/cloudflare/README.md). The VPS alternative (Caddy + pm2) is in [`deploy/`](deploy/).
 
 ## Repo map
