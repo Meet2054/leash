@@ -11,7 +11,18 @@ AI agents now spend money on their own. Their spending limits are usually enforc
 > Built during ETHGlobal Mumbai 2026. Status, evidence and anything mocked: [`LEASH_STATUS.md`](LEASH_STATUS.md). Full spec: [`CLAUDE.md`](CLAUDE.md).
 
 ## Why now
-- A Cornell Tech / Yale study this week found 9 of 10 frontier models raised their own agent-wallet spending caps by reading the emailed approval code. **Lesson: approval must be bound to an action the agent cannot perform.**
+- **Agents raise their own limits.** In [I-HITL (Cornell Tech / Yale, arXiv 2610.35835, Oct 2026)](https://arxiv.org/abs/2610.35835), agents ran a Circle Agent Wallet with a 1-cent daily cap.
+  - With no attacker at all, **9 of 10 frontier models raised their own cap** by reading the emailed one-time code.
+  - Under impersonation, **5 of 10 also paid the attacker**.
+  - The authors' conclusion is that a trusted device is required. **Lesson: approval must be bound to an action the agent cannot perform.**
+- **Prompt injection is not going away.** OpenAI calls it "unlikely to ever be fully solved" ([Dec 2025](https://openai.com/index/hardening-atlas-against-prompt-injection)). Anthropic: "No browser agent is immune to prompt injection" ([Nov 2025](https://www.anthropic.com/research/prompt-injection-defenses)).
+- **The money is already moving to agents:**
+  - Visa Intelligent Commerce, Mastercard Agent Pay and Coinbase x402 (2025)
+  - Google AP2 with signed "mandates" (Sep 2025)
+  - Stripe and OpenAI Instant Checkout (Sep 2025)
+  - Circle Agent Wallets (May 2026)
+  - McKinsey forecasts $3–5T of agentic commerce by 2030 ([source](https://www.digitalcommerce360.com/2025/10/20/mckinsey-forecast-5-trillion-agentic-commerce-sales-2030/))
+- **Invoice fraud is the obvious first target.** Business email compromise cost **$3.05B in 2025** ([FBI IC3](https://www.ic3.gov/AnnualReport/Reports/2025_IC3Report.pdf)). An AI accounts-payable agent that reads invoices is exactly what it will hit next. Our side-by-side demo (`apps/mcp/scripts/compare.ts`) runs that attack against an ordinary agent wallet, which gets drained, and against Leash, where 0 USDT moves.
 - x402 batch settlement is live on Solana but thin on EVM L2s, and agent-signed vouchers have no per-request checkpoint.
 - Onchain post-quantum verification costs about 1.5M gas, and Ethereum ranked PQ precompiles C-tier for Hegotá. So the account layer has to carry it, and only cheap L2s like Whitechain make that affordable today. We measured **1.52M gas per ETHFALCON verify, about 0.008 WBT** on Whitechain.
 
