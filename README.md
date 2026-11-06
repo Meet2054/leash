@@ -267,6 +267,9 @@ Tests: `pnpm test` (forge 71 tests + vitest).
 - **Differences from the Whitechain path:** on Hedera each paid request is its own settlement (no channel batching), and the mandate is enforced by our facilitator, not by an onchain vault.
 
 ## Try it yourself (live, testnet)
+- **Attack lab:** https://permissionless.in/lab. The same AI handles the same fake invoice, once without Leash (it pays the attacker) and once with Leash (0 moved), live in your browser. Use our local model or your own API key.
+- **Docs:** https://permissionless.in/docs. Connect your own AI agent (Claude, Cursor, any MCP app) and try to break it.
+
 Open **https://permissionless.in** on your phone.
 1. **Setup:** create the in-browser key, keep the default limits (the demo agent, 5 USDT), verify with World ID, then create the vault. Leash pays the gas.
 2. **Limits → Try it with the demo agent:**
