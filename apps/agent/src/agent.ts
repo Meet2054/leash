@@ -126,11 +126,11 @@ async function scenarioA() {
 
 async function printStats() {
   const s = (await (await fetch(`${FACILITATOR_URL}/stats`)).json()) as {
-    live: { vouchersServed: number; claimTxs: number; channelsOpened: number; txReductionFactor: number | null; signatureBytes: { leash: number; pqPerPaymentMlDsa44: number; reductionVsMlDsa44: number | null } };
+    live: { vouchersServed: number; claimTxs: number; channelsOpened: number; txReductionFactor: number | null; signatureBytes: { leash: number; pqPerPaymentEthFalcon: number; reductionVsEthFalcon: number | null; reductionVsMlDsa44: number | null } };
   };
   const l = s.live;
   log(`${c.bold}live: ${l.vouchersServed} vouchers → ${l.claimTxs} claim txs (${l.txReductionFactor?.toFixed(1) ?? "–"}× fewer txs), ${l.channelsOpened} channel opens${c.reset}`);
-  log(`${c.dim}signature bytes: Leash ${l.signatureBytes.leash} vs PQ-per-payment (ML-DSA-44) ${l.signatureBytes.pqPerPaymentMlDsa44} → ${l.signatureBytes.reductionVsMlDsa44?.toFixed(0) ?? "–"}× less${c.reset}`);
+  log(`${c.dim}signature bytes: Leash ${l.signatureBytes.leash} vs Falcon on every payment ${l.signatureBytes.pqPerPaymentEthFalcon} → ${l.signatureBytes.reductionVsEthFalcon?.toFixed(0) ?? "–"}× less (${l.signatureBytes.reductionVsMlDsa44?.toFixed(0) ?? "–"}× vs ML-DSA-44)${c.reset}`);
 }
 
 // ------------------------------------------------------------------------------------------- Scenario B

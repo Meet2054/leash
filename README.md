@@ -6,7 +6,7 @@ AI agents now spend money on their own. Their spending limits are usually enforc
 
 1. **Agents pay per request** through x402, using batched payment channels on Whitechain in USDT. They never hold gas.
 2. **Every payment is checked against an onchain mandate** (cap, merchants, expiry). Only the owner's **post-quantum (Falcon) key** can loosen it, and only after a **fresh World ID Agent Pass** check.
-3. **Agents sign with short-lived ECDSA session keys** whose worst case is capped by the mandate. The post-quantum cost is paid only on rare owner actions: **about 876× less signature data** than PQ-signing every payment (about 584× against a Falcon baseline; see [Data math](#data-math)).
+3. **Agents sign with short-lived ECDSA session keys** whose worst case is capped by the mandate. The post-quantum cost is paid only on rare owner actions: **about 584× less signature data** than Falcon-signing every payment (about 876× against an ML-DSA-44 baseline; see [Data math](#data-math)).
 
 > Built during ETHGlobal Mumbai 2026. Status, evidence and anything mocked: [`LEASH_STATUS.md`](LEASH_STATUS.md). Full spec: [`CLAUDE.md`](CLAUDE.md).
 
@@ -84,11 +84,12 @@ There is **no ECDSA owner path anywhere**: the only root authority is the post-q
 ## Data math
 Workload: 10,000 agents × 1 paid request per minute = 14.4M requests/day. Counting signature bytes only:
 
-| | per day |
-|---|---|
-| PQ signature on every payment (ML-DSA-44, 2,420 B) | **34.8 GB** |
-| Leash: hourly cumulative claims (240k × 65 B) + one PQ owner action per agent per day (10k × 2,420 B) | **39.8 MB** → **~876× less** |
-| Same, Falcon on both sides (ETHFALCON 1,064 B onchain) | 15.3 GB vs 26.2 MB → **~584× less** |
+| Baseline | PQ signature on every payment | Leash: hourly cumulative claims (240k × 65 B) + one PQ owner action per agent per day (10k) | Reduction |
+|---|---|---|---|
+| **Falcon on both sides** (ETHFALCON, 1,064 B onchain), the scheme we actually use | **15.3 GB** | **26.2 MB** | **~584× less** |
+| ML-DSA-44 on both sides (2,420 B) | 34.8 GB | 39.8 MB | ~876× less |
+
+The apples-to-apples number is the Falcon row: same signature scheme on both sides.
 
 The owner app's **Stats** tab computes the live version from real counts (vouchers served vs. claim transactions and their calldata) next to this projection.
 
@@ -176,7 +177,7 @@ Tests: `pnpm test` (forge 71 tests + vitest).
 viem, @x402/core, @x402/fetch, @x402/hono, OpenZeppelin Contracts 5.4, Foundry/forge-std, **ZKNox ETHFALCON** (MIT, contracts + Python reference signer + C signer), ZKNox NTT (polyntt), Next.js, React, Tailwind, Hono, `node:sqlite` (used instead of better-sqlite3, so there is no native build), vitest, jose, qrcode.react, Emscripten (build-time).
 
 ## AI usage disclosure
-Claude Code (Anthropic) built most of the code from the spec in [`CLAUDE.md`](CLAUDE.md), which the team drafted before kickoff. No code was pre-written. Patterns informed by the team's prior work; all code written during ETHGlobal Mumbai.
+Claude Code (Anthropic) built most of the code from the spec in [`CLAUDE.md`](CLAUDE.md). The spec was drafted at the start of the hackathon; no code was pre-written. Patterns informed by the team's prior work; all code written during ETHGlobal Mumbai.
 
 ## License
 MIT

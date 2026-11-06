@@ -45,19 +45,19 @@ export function Stats() {
         </div>
         <div className="text-sm space-y-1">
           <div>Signature bytes, Leash (65 B per claim + Falcon per owner action): <b>{bytes(l.signatureBytes.leash)}</b></div>
-          <div>If every payment were PQ-signed (ML-DSA-44, 2,420 B): <b>{bytes(l.signatureBytes.pqPerPaymentMlDsa44)}</b> → <b>{l.signatureBytes.reductionVsMlDsa44?.toFixed(0) ?? "–"}×</b> less</div>
-          <div className="muted">vs ETHFALCON per payment (1,064 B): {l.signatureBytes.reductionVsEthFalcon?.toFixed(0) ?? "–"}× less · onchain claim calldata {bytes(l.claimCalldataBytes)}</div>
+          <div>If every payment were Falcon-signed (1,064 B): <b>{bytes(l.signatureBytes.pqPerPaymentEthFalcon)}</b> → <b>{l.signatureBytes.reductionVsEthFalcon?.toFixed(0) ?? "–"}×</b> less</div>
+          <div className="muted">vs ML-DSA-44 per payment (2,420 B): {l.signatureBytes.reductionVsMlDsa44?.toFixed(0) ?? "–"}× less · onchain claim calldata {bytes(l.claimCalldataBytes)}</div>
         </div>
       </section>
 
       <section className="card space-y-2">
         <h2 className="font-semibold">At scale ({p.workload.agents.toLocaleString()} agents × 1 paid request/min)</h2>
         <div className="grid grid-cols-2 gap-3 text-center">
-          <Big v={bytes(p.mlDsaBaseline.pqPerPaymentBytes)} l="per day, PQ signature on every payment (ML-DSA-44)" />
-          <Big v={bytes(p.mlDsaBaseline.leashBytes)} l="per day, Leash (hourly claims + 1 PQ owner action/agent)" />
+          <Big v={bytes(p.falconBaseline.pqPerPaymentBytes)} l="per day, Falcon signature on every payment" />
+          <Big v={bytes(p.falconBaseline.leashBytes)} l="per day, Leash (hourly claims + 1 Falcon owner action/agent)" />
         </div>
-        <div className="text-center text-lg font-bold">{p.mlDsaBaseline.factor.toFixed(0)}× less signature data</div>
-        <div className="text-xs muted text-center">Same math with a Falcon baseline on both sides: {bytes(p.falconBaseline.pqPerPaymentBytes)} vs {bytes(p.falconBaseline.leashBytes)} → {p.falconBaseline.factor.toFixed(0)}×</div>
+        <div className="text-center text-lg font-bold">{p.falconBaseline.factor.toFixed(0)}× less signature data</div>
+        <div className="text-xs muted text-center">Against an ML-DSA-44 baseline: {bytes(p.mlDsaBaseline.pqPerPaymentBytes)} vs {bytes(p.mlDsaBaseline.leashBytes)} → {p.mlDsaBaseline.factor.toFixed(0)}×</div>
       </section>
 
       {t && (

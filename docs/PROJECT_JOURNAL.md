@@ -12,7 +12,7 @@
 **What Leash is:**
 1. An **x402 payment rail**: agents pay per request through **batched payment channels on Whitechain, in USDT, without ever holding gas**.
 2. Every payment is checked against an **onchain spending mandate** (cap, merchants, expiry). Only the owner's **post-quantum (ETHFALCON-512) key** can loosen it, and only after a **fresh World ID Agent Pass** human check.
-3. Agents use **short-lived ECDSA session keys** whose worst case is capped by the mandate, so the PQ cost is paid only on rare owner actions. That is **~876× less signature data** than PQ-signing every payment (~584× with Falcon on both sides).
+3. Agents use **short-lived ECDSA session keys** whose worst case is capped by the mandate, so the PQ cost is paid only on rare owner actions. That is **~584× less signature data** than Falcon-signing every payment (~876× against an ML-DSA-44 baseline).
 
 **Design rule:**
 - Post-quantum keys where keys live long; cheap ECDSA where exposure is bounded in time and value.
@@ -133,7 +133,7 @@ Money on chain: vault 17.17 USDT left; merchants received 4.75 USDT; fees 0.010 
 - World: IdP **device grant**, action binding server-side (no binding_message in the IdP); `WORLD_MODE=mock` for offline demos, always labelled MOCKED.
 - Storage: `node:sqlite` (built in) instead of better-sqlite3 (no native build).
 - Hedera primary plan: spec §10 fallback (`exact` scheme via `@x402/hedera` + HCS log). Port the EVM vault only if time allows.
-- Data math: show both baselines (ML-DSA-44 ≈ 876×, Falcon both sides ≈ 584×).
+- Data math: lead with **~584× (Falcon both sides, apples to apples)**, ~876× vs ML-DSA-44 second (review 2026-11-06 09:10). Spec drafted at the start of the hackathon; no code pre-written.
 
 ---
 

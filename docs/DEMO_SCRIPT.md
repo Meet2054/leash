@@ -74,7 +74,7 @@ The x402 endpoint on Hedera settles HTS USDC through our facilitator (HashScan t
 
 ### 3:15–3:30 · The number
 Owner → **Stats**:
-> "Live: 300 paid requests, 10 transactions. At 10,000 agents paying once a minute, putting a post-quantum signature on every payment is 34.8 GB a day. Leash is 40 MB: about 876× less, or 584× with Falcon on both sides. Post-quantum where keys live long, cheap ECDSA where exposure is bounded."
+> "Live: 300 paid requests, 10 transactions. At 10,000 agents paying once a minute, putting a Falcon signature on every payment is 15.3 GB a day. Leash is 26 MB: about 584× less (876× against ML-DSA). Post-quantum where keys live long, cheap ECDSA where exposure is bounded."
 
 ## Fallbacks during recording
 | Problem | Do this |
