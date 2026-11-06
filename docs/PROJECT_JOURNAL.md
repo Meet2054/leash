@@ -65,6 +65,7 @@ Track: **From Scratch** (all code written during the event; AI use disclosed; MI
 | 11-06 00:34–00:37 | **First real USDT claims**; Scenario A **300 paid calls → 10 claims**; fixed the self-throttle bug | `bdc81d8`, `44bf22f` |
 | 11-06 00:56 | Whitechain feedback, World debrief, demo script, this journal | `8d0e10a`+ |
 | 11-06 ~01:40–02:00 | Hedera: human created portal accounts (rotated once); bootstrap created the HCS topic + agent/merchant; Circle USDC faucet never delivered (first went to Arc, then the faucet stalled) | `caa3de8`, `635bedc` |
+| 11-06 ~09:40 | VISION.md added (strict P0→P3); World sandbox docs re-read: attestor matches "Human checkpoints"; now pins the linked `sub`; developer MCP path documented; no Agent Pass workshop exists (only IDKit's) | `426d004`+ |
 | 11-06 09:10–09:30 | Review round: deadline placeholder, LEASH_STATUS regenerated, data math leads with 584×, gitleaks clean, deploy kit (Caddy + pm2), trust-split tests (forge 75/75), reproducible deploy record (bytecode exact match) | `b17cd4d`…`e396b1c` |
 | 11-06 ~02:12 | **Hedera live (HBAR fallback):** 3 x402 payments settled through our facilitator (fee payer), the 6 HBAR call was refused (human approval required), 5 HCS messages | this commit |
 

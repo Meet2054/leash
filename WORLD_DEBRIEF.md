@@ -32,6 +32,8 @@ Code: [`apps/web/lib/server/world.ts`](apps/web/lib/server/world.ts), [`attestor
    - An undocumented `auth.worldcoin.dev` labels itself "fake identities and mock proofs", but we couldn't confirm it's meant for builders.
 6. **Selfie Check assurance classes are documented but not live.** Discovery lists only the orb classes and `/api/v1/features` returns `selfieCheck:false`.
 7. **The web Simulator can't be used.** Its CSP blocks the IdP bridge (confirmed), so you can't test from it.
+8. **No Agent Pass workshop, and conflicting test-identity guidance.** The ETHGlobal page links only an IDKit workshop. It says proofs are mocked so the sandbox app isn't needed, while World's testing guide says a sandbox World ID needs the TestFlight app. Neither says which issuer or steps the mock uses.
+9. **Good: agent-native tooling exists.** The developer MCP server lets a coding agent register and manage the app (CIMD OAuth, Google consent), and the step-up guide's "Human checkpoints" section describes exactly our pattern.
 
 ## Missing capability / docs
 - **An action-bound approval:** let the relying party pass an `action_hash` (or a `binding_message` that is shown to the user **and signed into the ID token**).

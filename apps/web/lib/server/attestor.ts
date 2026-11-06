@@ -13,7 +13,7 @@ import {
   type WorldApprovalMsg,
 } from "@leash/sdk";
 import { CHAIN_ID, FACILITATOR_URL, RPC_URL, WORLD, attestorKey, deployment, APP_URL } from "./env";
-import { getApproval, getAttempt, insertAttempt, newId, now, setApproval, setAttempt, type AttemptRow } from "./db";
+import { db, getApproval, getAttempt, insertAttempt, newId, now, setApproval, setAttempt, type AttemptRow } from "./db";
 import { mintMockIdToken, pollDeviceToken, startDeviceAuth, validateIdToken } from "./world";
 
 export const publicClient = createPublicClient({ chain: whitechainSepolia, transport: http(RPC_URL) });
@@ -79,7 +79,13 @@ export async function startApprovalAttempt(approvalId: string): Promise<StartedA
   const change: MandateChangeMsg = { action: a.action, data: a.data as Hex, nonce, deadline: BigInt(now() + CHANGE_TTL) };
   const changeHash = mandateChangeDigest(CHAIN_ID, vault, change);
   const id = newId();
-  const w = await beginWorld(id);
+  // World step-up guidance: for an account with a linked World ID, require that same (iss, sub).
+  // If the vault was onboarded through the real IdP, pin its sub so World rejects any other account
+  // up front (our backend still re-checks the subject hash against the vault onchain).
+  const linked = db()
+    .prepare("SELECT sub FROM attempts WHERE kind = 'create' AND status = 'APPROVED' AND mode = 'world' AND sub IS NOT NULL AND lower(vault) = lower(?) ORDER BY started_at DESC LIMIT 1")
+    .get(vault) as { sub: string } | undefined;
+  const w = await beginWorld(id, linked?.sub);
   insertAttempt({
     id,
     kind: "approval",

@@ -37,3 +37,9 @@ Endpoints (same paths on both): `/api/v1/authorize`, `/api/v1/token`, `/api/v1/d
 
 ## Local testing
 Docs recommend signed local fixtures: generate an RS256 key, serve a local JWKS, mint ID tokens for validation and failure-path tests. We do this in vitest and in `WORLD_MODE=mock` for offline demos (clearly labelled MOCKED).
+
+## Update 2026-11-06 ~09:40 IST (sandbox docs re-read)
+- **Human checkpoints** (step-up guide) is World's named pattern for our case: pause the agent workflow, run step-up (device grant for headless), save the exact action + version + expiry bound to the attempt, re-check at execution, use the approval once in the same DB transaction, and leave denial/cancel/expiry blocked. Our attestor matches this. Since 09:40 it also **pins the vault's linked `sub`** in the device request (`claims.sub`) when the vault was onboarded through the real IdP.
+- **Developer MCP (agent-native app registration):** `https://sandbox.auth.world.org/mcp/developer` (Streamable HTTP + OAuth, CIMD; no DCR). For Claude Code: `claude mcp add --transport http --scope user world-id-developer-sandbox https://sandbox.auth.world.org/mcp/developer`, then `/mcp` → Google sign-in + consent with scope `developer-portal:manage`. The agent can then register/manage the sandbox app through tools. `list_idp_guides` needs no auth.
+- **Test identities:** the ETHGlobal prize page says "We are mocking proofs now, so you don't need sandbox app anymore" ("fake identities, DO NOT rely in them for production") but gives no issuer or steps. World's testing guide still says a sandbox World ID needs the TestFlight app (Add proof of human → Manual verify, ~1 h). Conflicting; ask the World mentors. "Sandbox auth does not establish Orb verification", so don't request essential `orb` acr in sandbox (our `WORLD_REQUEST_ACR` is empty by default).
+- No Agent Pass workshop is listed on ETHGlobal. The only World workshop video linked is for IDKit (not this flow).
