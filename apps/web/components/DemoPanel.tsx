@@ -9,7 +9,7 @@ import { Section, TxLink } from "./leash/kit";
 type RunResult = { paid: number; spent: string; refused: string | null; opened: { merchant: string; txHash: string }[]; claims: string[] };
 
 /** Self-serve demo: fund the vault, let the demo agent pay, and let it ask for more (fair or prompt-injected). */
-export function DemoPanel({ vault, balance, hasDemoAgent, onChange, goRequests }: { vault: string; balance?: string; hasDemoAgent: boolean; onChange: () => void; goRequests?: () => void }) {
+export function DemoPanel({ vault, balance, hasDemoAgent, demoState = "active", onChange, goRequests }: { vault: string; balance?: string; hasDemoAgent: boolean; demoState?: "active" | "expired" | "revoked" | "missing"; onChange: () => void; goRequests?: () => void }) {
   const [busy, setBusy] = useState<string>();
   const [last, setLast] = useState<RunResult>();
   const run = async (what: string, fn: () => Promise<void>) => {
@@ -27,6 +27,8 @@ export function DemoPanel({ vault, balance, hasDemoAgent, onChange, goRequests }
   return (
     <Section icon={<Bot className="size-5" />} title="Try it with the demo agent" description="Our demo agent has a session key in your vault. It never holds gas, and it can only do what your limits allow.">
       {!hasDemoAgent && <div className="well p-3 text-[0.8rem] text-muted-foreground">This vault didn&apos;t authorize the demo agent. Add it under &ldquo;Add an agent&rdquo; to try this.</div>}
+      {demoState === "expired" && <div className="well p-3 text-[0.8rem] leading-relaxed">The demo agent&apos;s time ran out, so it can&apos;t pay. Tap <b>Renew for 24 hours</b> on it under <b>Agents</b> below (one World ID scan).</div>}
+      {demoState === "revoked" && <div className="well p-3 text-[0.8rem] leading-relaxed">You froze the demo agent, so it can&apos;t pay any more. That&apos;s the point. To try again, set up a new vault in a private window.</div>}
       <div className="grid gap-2">
         {low && (
           <Button
@@ -45,7 +47,7 @@ export function DemoPanel({ vault, balance, hasDemoAgent, onChange, goRequests }
         )}
         <Button
           size="lg"
-          disabled={!!busy || !hasDemoAgent}
+          disabled={!!busy || demoState !== "active"}
           onClick={() =>
             run("agent", async () => {
               const r = await api<RunResult>("/api/demo/agent", { vault, calls: 20 });
@@ -60,7 +62,7 @@ export function DemoPanel({ vault, balance, hasDemoAgent, onChange, goRequests }
         <div className="grid grid-cols-2 gap-2">
           <Button
             variant="secondary"
-            disabled={!!busy || !hasDemoAgent}
+            disabled={!!busy || demoState !== "active"}
             onClick={() =>
               run("ask", async () => {
                 await api("/api/demo/ask", { vault, kind: "reasonable" });
@@ -72,7 +74,7 @@ export function DemoPanel({ vault, balance, hasDemoAgent, onChange, goRequests }
           </Button>
           <Button
             variant="secondary"
-            disabled={!!busy || !hasDemoAgent}
+            disabled={!!busy || demoState !== "active"}
             onClick={() =>
               run("inject", async () => {
                 await api("/api/demo/ask", { vault, kind: "injected" });

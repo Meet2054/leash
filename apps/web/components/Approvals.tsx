@@ -28,7 +28,7 @@ const label: Record<string, string> = { PENDING: "Needs you", APPROVING: "In pro
 /** Make the server's op description friendlier ("Set session 0x…: cap 8 USDT, expires …"). */
 const friendly = (d: string) =>
   d
-    .replace(/^Set session (0x[0-9a-fA-F]+): cap ([\d.]+ USDT), expires .*/, "Raise the agent's spending cap to $2")
+    .replace(/^Set session (0x[0-9a-fA-F]+): cap ([\d.]+ USDT), expires (.*)/, (_m, _s, cap, exp) => `Set the agent's cap to ${cap}, valid until ${new Date(exp).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}`)
     .replace(/^Add session (0x[0-9a-fA-F]+): cap ([\d.]+ USDT).*/, "Add an agent with a $2 cap")
     .replace(/^Withdraw ([\d.]+ USDT) to (0x[0-9a-fA-F]{6}).*/, "Withdraw $1 to $2…")
     .replace(/^Allow merchant (0x[0-9a-fA-F]{6})[0-9a-fA-F]*: daily cap ([\d.]+ USDT).*/, "Allow merchant $1… ($2 per day)");

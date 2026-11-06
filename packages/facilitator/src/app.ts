@@ -247,7 +247,10 @@ export function createApp(ctx: FacilitatorContext) {
     }
     return c.json(await computeStats(ctx));
   });
-  app.get("/events", (c) => c.json(ctx.store.events(Number(c.req.query("limit") ?? 100), c.req.query("kind") ?? undefined)));
+  app.get("/events", (c) => {
+    const vault = c.req.query("vault");
+    return c.json(ctx.store.events(Number(c.req.query("limit") ?? 100), c.req.query("kind") ?? undefined, vault && isAddress(vault) ? vault : undefined));
+  });
   app.get("/claims", (c) =>
     c.json(ctx.store.claims(Number(c.req.query("limit") ?? 100)).map((r) => ({ ...r, explorerUrl: EXPLORERS[r.chain_id]?.tx(r.tx) }))),
   );

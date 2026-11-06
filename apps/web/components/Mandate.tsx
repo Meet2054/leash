@@ -118,7 +118,17 @@ export function Mandate({ vault, chainId, signer, demoAgent, goRequests }: { vau
         </div>
       </Section>
 
-      <DemoPanel vault={vault} balance={v.balance} hasDemoAgent={Boolean(demoAgent && v.sessions?.some((s) => s.address.toLowerCase() === demoAgent.toLowerCase()))} onChange={refresh} goRequests={goRequests} />
+      <DemoPanel
+        vault={vault}
+        balance={v.balance}
+        hasDemoAgent={Boolean(demoAgent && v.sessions?.some((s) => s.address.toLowerCase() === demoAgent.toLowerCase()))}
+        demoState={(() => {
+          const d = demoAgent ? v.sessions?.find((s) => s.address.toLowerCase() === demoAgent.toLowerCase()) : undefined;
+          return !d ? "missing" : d.revoked ? "revoked" : Number(d.expiry) <= now ? "expired" : "active";
+        })()}
+        onChange={refresh}
+        goRequests={goRequests}
+      />
 
       {breaker?.state === "open" && (
         <Section icon={<Zap className="size-5 text-[var(--bad)]" />} title="Spending stopped automatically" description={`${breaker.detail}. All payments from this vault are paused${breaker.reopensAt ? ` until ${new Date(breaker.reopensAt).toLocaleTimeString()}` : ""}.`}>
@@ -176,6 +186,11 @@ export function Mandate({ vault, chainId, signer, demoAgent, goRequests }: { vau
                 <Meter value={used} max={BigInt(s.cap)} />
                 <div className="text-[0.72rem] text-muted-foreground">Expires {new Date(Number(s.expiry) * 1000).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</div>
               </div>
+              {!s.revoked && !active && (
+                <Button className="w-full" disabled={!!busy} onClick={() => submit(encode.setSessionLimits(getAddress(s.address), BigInt(Math.floor(now + 24 * 3600)), BigInt(s.cap)), "Renew agent for 24 hours")}>
+                  Renew for 24 hours (needs World ID)
+                </Button>
+              )}
               {!s.revoked && (
                 <div className="flex gap-2">
                   <Input className="h-10" inputMode="decimal" placeholder="New cap" value={capEdit[s.address] ?? ""} onChange={(e) => setCapEdit({ ...capEdit, [s.address]: e.target.value })} />

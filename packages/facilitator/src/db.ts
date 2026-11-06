@@ -250,7 +250,12 @@ export class Store {
     this.db.prepare("UPDATE events SET hcs = ? WHERE id = ?").run(hcs, id);
   }
 
-  events(limit = 100, kind?: string): EventRow[] {
+  events(limit = 100, kind?: string, vault?: string): EventRow[] {
+    if (vault) {
+      const v = vault.toLowerCase();
+      if (kind) return this.db.prepare("SELECT * FROM events WHERE lower(vault) = ? AND kind = ? ORDER BY id DESC LIMIT ?").all(v, kind, limit) as EventRow[];
+      return this.db.prepare("SELECT * FROM events WHERE lower(vault) = ? ORDER BY id DESC LIMIT ?").all(v, limit) as EventRow[];
+    }
     if (kind) return this.db.prepare("SELECT * FROM events WHERE kind = ? ORDER BY id DESC LIMIT ?").all(kind, limit) as EventRow[];
     return this.db.prepare("SELECT * FROM events ORDER BY id DESC LIMIT ?").all(limit) as EventRow[];
   }

@@ -38,6 +38,14 @@ export function Onboard(props: { cfg: Config; signer: OwnerSigner | null; signer
   const [protection, setProtection] = useState<"none" | "passkey">("none");
 
   const agent = useOwnAgent ? ownAgent : (cfg.demoAgent ?? "");
+  // an already-selected vault: is it live, and is this browser's key its owner?
+  const [current, setCurrent] = useState<{ deployed: boolean; pqPubKeyHash?: string; worldSubjectHash?: string; balance: string } | null>(null);
+  const [showWizard, setShowWizard] = useState(false);
+  useEffect(() => {
+    if (!props.vault) return setCurrent(null);
+    api<{ deployed: boolean; pqPubKeyHash?: string; worldSubjectHash?: string; balance: string }>(`/api/vault/${props.vault}`).then(setCurrent).catch(() => setCurrent(null));
+  }, [props.vault]);
+  const ownsCurrent = Boolean(current?.deployed && pubKeyHash && current.pqPubKeyHash?.toLowerCase() === pubKeyHash.toLowerCase());
 
   useEffect(() => {
     signer?.pubKey().then((pk) => setPubKeyHash(keccak256(pk))).catch(() => setPubKeyHash(undefined));
@@ -124,6 +132,45 @@ export function Onboard(props: { cfg: Config; signer: OwnerSigner | null; signer
   const s2 = !keyReady ? "todo" : attemptId ? "done" : "active";
   const s3 = !limitsReady ? "todo" : worldDone ? "done" : "active";
   const s4 = created ? "done" : worldDone ? "active" : "todo";
+
+  if (props.vault && current?.deployed && !created && !showWizard)
+    return (
+      <div className="space-y-3">
+        <div className="px-1 pb-1">
+          <h1 className="text-2xl font-semibold tracking-tight">{ownsCurrent ? "You're all set" : "Watching a vault"}</h1>
+          <p className="mt-1 text-[0.88rem] leading-relaxed text-muted-foreground">
+            {ownsCurrent ? "Your vault is live. You don't need to verify again: World ID is only asked when you raise a limit." : "This browser doesn't hold this vault's owner key, so you can look but not change its limits."}
+          </p>
+        </div>
+        <Section>
+          <div className="space-y-2.5 pt-1">
+            {[
+              [ownsCurrent, "Owner key on this device", ownsCurrent ? `Falcon-512${protection === "passkey" ? " · passkey-protected" : ""}` : "not on this device"],
+              [Boolean(current.worldSubjectHash && !/^0x0+$/.test(current.worldSubjectHash)), "Linked to a World ID", "verified when the vault was created"],
+              [true, "Vault live onchain", `${money(current.balance)} USDT inside`],
+            ].map(([ok, title, hint]) => (
+              <div key={title as string} className="well flex items-center gap-3 p-3">
+                <div className={`grid size-7 shrink-0 place-items-center rounded-full text-[0.75rem] font-semibold ${ok ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{ok ? "✓" : "–"}</div>
+                <div className="min-w-0">
+                  <div className="text-[0.88rem] font-medium">{title as string}</div>
+                  <div className="text-[0.75rem] text-muted-foreground">{hint as string}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <Copyable value={props.vault} display={`${props.vault.slice(0, 10)}…${props.vault.slice(-6)}`} />
+          <div className="grid grid-cols-2 gap-2">
+            <Button size="lg" onClick={() => props.setVault(props.vault)}>
+              Open my limits
+            </Button>
+            <Button size="lg" variant="secondary" onClick={() => setShowWizard(true)}>
+              Show setup steps
+            </Button>
+          </div>
+          <p className="text-[0.75rem] leading-relaxed text-muted-foreground">To try setup from scratch as a new user, open permissionless.in in a private window. This browser&apos;s key already owns this vault.</p>
+        </Section>
+      </div>
+    );
 
   return (
     <div className="space-y-3">

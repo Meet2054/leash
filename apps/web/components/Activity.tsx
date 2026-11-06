@@ -2,6 +2,7 @@
 import { ArrowUpRight, Receipt, ScrollText, Waypoints } from "lucide-react";
 import { explorerTx, money, short, usePoll, usdt } from "@/lib/client/api";
 import { Empty, Meter, Pill, Section } from "./leash/kit";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Channel = { channelId: string; vault: string; merchant: string; locked: string; lastAccepted: string; claimedOnchain: string; expiry: string; status: string };
 type Claim = { tx: string; channel_id: string; merchant: string; delta: string; fee: string; vouchers_covered: number; calldata_bytes: number; at: number; explorerUrl?: string };
@@ -23,13 +24,18 @@ const kindLabel: Record<string, string> = {
   LooseningCancelled: "Loosening cancelled",
   CircuitTripped: "Spending stopped automatically",
   FlightRecord: "Activity log sealed",
+  DemoFaucet: "Test USDT received",
 };
 const time = (s: number) => new Date(s * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
 export function Activity({ vault }: { vault: string }) {
-  const channels = usePoll<Channel[]>(`/api/facilitator/channels?vault=${vault}`, 4000).data ?? [];
-  const claims = usePoll<Claim[]>(`/api/facilitator/claims?limit=50`, 4000).data ?? [];
-  const events = usePoll<Event[]>(`/api/facilitator/events?limit=60`, 4000).data ?? [];
+  const chQ = usePoll<Channel[]>(`/api/facilitator/channels?vault=${vault}`, 4000);
+  const clQ = usePoll<Claim[]>(`/api/facilitator/claims?limit=300`, 5000);
+  const evQ = usePoll<Event[]>(`/api/facilitator/events?vault=${vault}&limit=60`, 4000);
+  const channels = chQ.data ?? [];
+  const claims = clQ.data ?? [];
+  const events = evQ.data ?? [];
+  const loading = chQ.data === undefined || evQ.data === undefined;
   const mine = new Set(channels.map((c) => c.channelId.toLowerCase()));
   const myClaims = claims.filter((c) => mine.has(c.channel_id.toLowerCase()));
   const myEvents = events.filter((e) => !e.vault || e.vault.toLowerCase() === vault.toLowerCase());
@@ -41,7 +47,9 @@ export function Activity({ vault }: { vault: string }) {
         <p className="mt-1 text-[0.85rem] text-muted-foreground">Your agent pays per request. Payments are bundled, so merchants get one transaction for hundreds of requests.</p>
       </div>
 
-      {channels.length === 0 && myClaims.length === 0 ? (
+      {loading ? (
+        <Skeleton className="h-40 rounded-2xl" />
+      ) : channels.length === 0 && myClaims.length === 0 ? (
         <Empty icon={<Waypoints className="size-5" />} title="No payments yet" hint="When your agent starts paying for APIs, its payment channels and settlements appear here." />
       ) : (
         <>
@@ -50,7 +58,7 @@ export function Activity({ vault }: { vault: string }) {
               <div key={c.channelId} className="well space-y-2 p-3.5">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-mono text-[0.78rem]">To {short(c.merchant)}</span>
-                  <Pill>{c.status}</Pill>
+                  <Pill tone={c.status === "open" ? "ok" : "neutral"}>{c.status === "open" ? "Open" : "Settled & closed"}</Pill>
                 </div>
                 <Meter value={BigInt(c.lastAccepted)} max={BigInt(c.locked)} />
                 <div className="num text-[0.75rem] text-muted-foreground">
@@ -77,7 +85,7 @@ export function Activity({ vault }: { vault: string }) {
       )}
 
       <Section icon={<ScrollText className="size-5" />} title="Audit log" description="Every decision is also written to a public Hedera topic (tamper-evident).">
-        {myEvents.length === 0 && <div className="well p-3 text-[0.82rem] text-muted-foreground">Nothing yet.</div>}
+        {myEvents.length === 0 && <div className="well p-3 text-[0.82rem] text-muted-foreground">{loading ? "Loading…" : "Nothing yet."}</div>}
         <div className="space-y-1">
           {myEvents.map((e) => (
             <div key={e.id} className="flex items-center justify-between gap-3 rounded-xl px-1 py-2">

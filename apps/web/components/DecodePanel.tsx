@@ -9,7 +9,11 @@ export function decodingsMatch(a: string[] | null | undefined, b: string[] | nul
 /** Plain-language view of a canonical op line (the raw line stays visible underneath). */
 function humanize(line: string): string {
   const usd = (s: string) => s.match(/\(([\d.]+) USDT\)/)?.[1]?.replace(/\.?0+$/, "") ?? "";
-  if (line.startsWith("SET_SESSION_LIMITS")) return `Set the agent's spending cap to ${usd(line.split("cap ")[1] ?? "")} USDT`;
+  if (line.startsWith("SET_SESSION_LIMITS")) {
+    const iso = line.match(/expiry \d+ \(([^)]+)\)/)?.[1];
+    const until = iso && iso !== "never" ? new Date(iso).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : null;
+    return `Set the agent's spending cap to ${usd(line.split("cap ")[1] ?? "")} USDT${until ? `, valid until ${until}` : ""}`;
+  }
   if (line.startsWith("ADD_SESSION")) return `Add an agent with a ${usd(line.split("cap ")[1] ?? "")} USDT cap`;
   if (line.startsWith("WITHDRAW")) return `Withdraw ${usd(line)} USDT to ${line.split("to ")[1]?.slice(0, 10)}…`;
   if (line.startsWith("SET_MERCHANT")) return `Allow merchant ${line.split("merchant ")[1]?.slice(0, 10)}… (daily ${usd(line.split("dailyCap ")[1] ?? "")} USDT)`;
