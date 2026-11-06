@@ -203,7 +203,7 @@ pnpm agent a --calls 150        # Scenario A: discover + pay; batcher claims
 pnpm agent b                    # Scenario B: prompt-injected cap raise → deny / approve
 pnpm agent c                    # Scenario C: leaked key is bounded → pnpm owner revoke-session
 ```
-Tests: `pnpm test` (forge 71 tests + vitest).
+Tests: `pnpm test` (forge 75 tests + vitest).
 
 ## Sponsor sections
 
