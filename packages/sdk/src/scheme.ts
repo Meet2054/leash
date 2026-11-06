@@ -96,4 +96,5 @@ export const INVALID = {
   exceedsLocked: "leash_exceeds_locked",
   rateLimited: "leash_rate_limited",
   vaultNotLeash: "leash_vault_not_from_factory",
+  circuitOpen: "leash_circuit_open",
 } as const;

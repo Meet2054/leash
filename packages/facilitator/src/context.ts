@@ -7,6 +7,7 @@ import { Relayer, VAULT_SELECTORS, leashAllowRule } from "@leash/relayer";
 import { Store } from "./db.js";
 import { ChannelEngine, type EngineConfig } from "./engine.js";
 import { StoreAudit, type ExternalLog } from "./audit.js";
+import { CircuitBreaker, breakerConfigFromEnv, type BreakerConfig } from "./breaker.js";
 
 export type Deployment = {
   chainId: number;
@@ -35,6 +36,7 @@ export type FacilitatorConfig = {
   externalLog?: ExternalLog;
   pollingIntervalMs?: number;
   replaceAfterMs?: number;
+  breaker?: BreakerConfig | false;
 };
 
 export function loadDeployment(path: string): Deployment {
@@ -122,7 +124,18 @@ export function createContext(cfg: FacilitatorConfig): FacilitatorContext {
     vouchersPerSessionPerSec: 50,
     ...cfg.engine,
   };
-  const engine = new ChannelEngine(engineCfg, store, relayer, client, audit, isLeashVault);
+  const breaker =
+    cfg.breaker === false
+      ? undefined
+      : new CircuitBreaker(cfg.breaker ?? breakerConfigFromEnv(), (s) => {
+          void audit.publish({
+            kind: "CircuitTripped",
+            chainId: cfg.chain.id,
+            vault: s.vault as Address,
+            data: { reason: s.reason, detail: s.detail, sessions: s.sessionsSeen, metrics: s.metrics, reopensAt: s.reopensAt },
+          });
+        });
+  const engine = new ChannelEngine(engineCfg, store, relayer, client, audit, isLeashVault, breaker);
   const extra: LeashExtra = {
     facilitatorUrl: cfg.publicUrl,
     minChannel: (cfg.minChannel ?? 1_000_000n).toString(),

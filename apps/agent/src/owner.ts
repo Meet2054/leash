@@ -219,6 +219,14 @@ const main = async () => {
   switch (cmd) {
     case "approvals":
       return cmdApprovals();
+    case "freeze": {
+      // F2: revoke every session involved in a breaker incident (or the CLI agent session) — tightening, PQ only
+      const v = loadVault();
+      const st = (await (await fetch(`${FACILITATOR_URL}/breaker?vault=${v.vault}`)).json()) as { sessionsSeen?: string[] };
+      const sessions = (st.sessionsSeen?.length ? st.sessionsSeen : [agentSession().address]).map((s) => getAddress(s));
+      const ops = sessions.map((s) => encode.revokeSession(s));
+      return applyChange(ops.length === 1 ? ops[0] : encode.batch(ops));
+    }
     case "deny":
       return cmdDeny(args[0]);
     case "approve":
@@ -243,7 +251,7 @@ const main = async () => {
     case "withdraw":
       return applyChange(encode.withdraw(getAddress(args[1]), parseUnits6(args[0])), flag("attest"));
     default:
-      console.log("commands: init | address | create-vault --attest local | status | set-session-cap <usdt> | revoke-session [addr] | withdraw <usdt> <to>");
+      console.log("commands: init | address | create-vault --attest local | status | set-session-cap <usdt> | revoke-session [addr] | withdraw <usdt> <to> | freeze | approvals | approve | deny");
       void Action;
   }
 };

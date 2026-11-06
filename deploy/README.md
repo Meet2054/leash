@@ -26,6 +26,7 @@ Persistent state lives on a volume at **`/var/lib/leash`**: `env/.env` (secrets)
 5. Check: `bash deploy/check.sh <DOMAIN>` (all ✓). The live demo link is `https://<DOMAIN>`.
 
 ## Notes
+- **Set `ADMIN_TOKEN` in the server `.env`** (a long random string). It protects `/facilitator/admin/*` (force-batch, circuit-breaker reset) and `/facilitator/audit`. Without it those endpoints are open.
 - **The relayer key is single-writer.** Never run a second facilitator with the same `RELAYER_PK_WHITECHAIN` (laptop + server at once) or nonces collide. Stop the laptop facilitator before going live.
 - `WORLD_MODE=world` plus `WORLD_CLIENT_ID/SECRET` in the server `.env` enables the real World IdP. Register `https://<DOMAIN>/` as the redirect URI in the World portal.
 - The in-browser Falcon key (WASM) needs HTTPS, which Caddy provides. The Python owner-signer is not deployed.

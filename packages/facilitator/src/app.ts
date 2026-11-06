@@ -110,6 +110,7 @@ export function createApp(ctx: FacilitatorContext) {
         functionName: "applyChange",
         args: [change, b.pqPubKey, b.pqSig, wa, (b.attestorSig ?? "0x") as Hex],
       });
+      ctx.engine.breaker?.recordChangeAttempt(vault); // counted, never blocked: the owner may always change the mandate
       const sent = await ctx.relayer.send({ to: vault, data, label: "applyChange", budgetKeys: [`vault:${vault.toLowerCase()}:change`] });
       const ev = findEvent(sent.receipt, "MandateChanged");
       const args = (ev?.args ?? {}) as { loosening?: boolean; changeHash?: Hex };
@@ -182,6 +183,22 @@ export function createApp(ctx: FacilitatorContext) {
       method: r.method,
     }));
     return c.json({ x402Version: 2, items, pagination: { limit, offset, total: all.length } });
+  });
+
+  // ---------------------------------------------------------------- F2 circuit breaker
+  app.get("/breaker", async (c) => {
+    const vault = c.req.query("vault");
+    if (!vault || !isAddress(vault) || !ctx.engine.breaker) return c.json({ enabled: Boolean(ctx.engine.breaker) });
+    const st = ctx.engine.breaker.status(getAddress(vault));
+    // suggested tightening for the owner: revoke every session seen in the incident (PQ signature only, no World check)
+    return c.json({ enabled: true, ...st, suggestion: st.state === "open" ? { kind: "REVOKE_SESSIONS", sessions: st.sessionsSeen } : null, config: ctx.engine.breaker.cfg });
+  });
+  app.post("/admin/breaker/reset", async (c) => {
+    if (ctx.cfg.adminToken && c.req.header("authorization") !== `Bearer ${ctx.cfg.adminToken}`) return c.json({ error: "unauthorized" }, 401);
+    const { vault } = await c.req.json();
+    ctx.engine.breaker?.reset(vault);
+    await ctx.audit.publish({ kind: "CircuitReset", chainId: ctx.cfg.chain.id, vault, data: { by: "admin" } });
+    return c.json({ ok: true });
   });
 
   // ---------------------------------------------------------------- dashboard data

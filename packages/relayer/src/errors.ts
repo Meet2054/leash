@@ -6,7 +6,8 @@ export type RelayerErrorCode =
   | "rate_limited"
   | "uneconomic"
   | "send_failed"
-  | "receipt_timeout";
+  | "receipt_timeout"
+  | "circuit_open";
 
 /** HTTP status the facilitator should map each code to. */
 export const HTTP_STATUS: Record<RelayerErrorCode, number> = {
@@ -18,6 +19,7 @@ export const HTTP_STATUS: Record<RelayerErrorCode, number> = {
   uneconomic: 422,
   send_failed: 502,
   receipt_timeout: 504,
+  circuit_open: 423,
 };
 
 export class RelayerError extends Error {

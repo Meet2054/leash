@@ -22,6 +22,7 @@ export type VaultState = {
 
 export function Mandate({ vault, chainId, signer }: { vault: string; chainId: number; signer: OwnerSigner | null }) {
   const { data: v, refresh } = usePoll<VaultState>(`/api/vault/${vault}`, 5000);
+  const { data: breaker } = usePoll<{ enabled?: boolean; state?: string; reason?: string; detail?: string; sessionsSeen?: string[]; reopensAt?: number }>(`/api/facilitator/breaker?vault=${vault}`, 3000);
   const [busy, setBusy] = useState<string>();
   const [msg, setMsg] = useState<{ ok: boolean; text: string; tx?: string }>();
   const [pendingApproval, setPendingApproval] = useState<string>();
@@ -71,8 +72,39 @@ export function Mandate({ vault, chainId, signer }: { vault: string; chainId: nu
         </div>
       </section>
 
+      {breaker?.state === "open" && (
+        <section className="card space-y-2" style={{ borderColor: "var(--color-bad)" }}>
+          <h2 className="font-semibold" style={{ color: "var(--color-bad)" }}>⚡ Circuit breaker tripped</h2>
+          <p className="text-sm">{breaker.detail}. All spending from this vault is stopped{breaker.reopensAt ? ` until ${new Date(breaker.reopensAt).toLocaleTimeString()}` : ""}.</p>
+          <p className="text-xs muted">Freezing revokes every session involved. It only tightens, so your Falcon key is enough — no World check.</p>
+          <button
+            className="btn btn-danger"
+            disabled={!!busy}
+            onClick={() => {
+              const s = (breaker.sessionsSeen ?? []).filter((x) => v?.sessions?.some((y) => y.address.toLowerCase() === x.toLowerCase() && !y.revoked));
+              const ops = s.map((x) => encode.revokeSession(getAddress(x)));
+              if (ops.length) submit(ops.length === 1 ? ops[0] : encode.batch(ops), `Freeze ${ops.length} session(s)`);
+            }}
+          >
+            Freeze involved sessions
+          </button>
+        </section>
+      )}
+
       <section className="card space-y-2">
-        <h2 className="font-semibold">Agent sessions</h2>
+        <div className="flex justify-between items-center">
+          <h2 className="font-semibold">Agent sessions</h2>
+          <button
+            className="btn btn-danger"
+            disabled={!!busy || !v.sessions?.some((s) => !s.revoked)}
+            onClick={() => {
+              const ops = (v.sessions ?? []).filter((s) => !s.revoked).map((s) => encode.revokeSession(getAddress(s.address)));
+              if (ops.length) submit(ops.length === 1 ? ops[0] : encode.batch(ops), `Freeze all (${ops.length} session(s))`);
+            }}
+          >
+            Freeze all
+          </button>
+        </div>
         {v.sessions?.map((s) => {
           const live = !s.revoked && Number(s.expiry) > now;
           return (

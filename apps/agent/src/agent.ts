@@ -275,15 +275,63 @@ async function printSession() {
   log(`WBT balance: ${formatUnits(await publicClient.getBalance({ address: s.address }), 18)}`);
 }
 
+// ------------------------------------------------------------------------------------------- Scenario D (swarm burst)
+
+async function scenarioD() {
+  const workers = Number(flag("workers", "20"));
+  log(`${c.bold}Scenario D — swarm burst: ${workers} copies of a compromised agent hammer one vault at once${c.reset}`);
+  const quote = (await discover()).find((r) => r.resource.endsWith("/quote") && (r.accepts[0] as { network?: string }).network === `eip155:${CHAIN_ID}`);
+  if (!quote) throw new Error("no /quote endpoint discovered");
+  const { vault } = loadVault();
+  const status = async () => (await (await fetch(`${FACILITATOR_URL}/breaker?vault=${vault}`)).json()) as { state: string; reason?: string; detail?: string; sessionsSeen?: string[]; metrics?: Record<string, number>; reopensAt?: number };
+
+  // warm-up: one normal paid call so a channel with capacity exists (the swarm resumes it, no new opens)
+  const warm = await payingFetch().fetch(requestFor(quote, 0));
+  if (warm.status !== 200) {
+    log(`${c.yellow}  warm-up refused: ${reasonOf(warm)}${c.reset}`);
+    if (/circuit_open/.test(reasonOf(warm))) log(`  breaker already open: ${JSON.stringify(await status())}`);
+    return;
+  }
+  log(`${c.dim}  warm-up call ok · breaker: ${(await status()).state}${c.reset}`);
+
+  const t0 = Date.now();
+  let trippedAfter: number | undefined;
+  const counts = { paid: 0, refused: 0, cutOff: 0 };
+  await Promise.all(
+    Array.from({ length: workers }, async (_, w) => {
+      const { fetch: f } = payingFetch(); // same leaked session key, its own client: a self-cloning agent
+      for (let k = 0; k < 60 && trippedAfter === undefined; k++) {
+        const r = await f(requestFor(quote, w * 100 + k));
+        if (r.status === 200) counts.paid++;
+        else if (/circuit_open/.test(reasonOf(r))) {
+          trippedAfter ??= Date.now() - t0;
+          counts.cutOff++;
+          break;
+        } else counts.refused++;
+      }
+    }),
+  );
+  const st = await status();
+  if (st.state === "open") {
+    log(`${c.green}  ⚡ circuit breaker tripped after ${trippedAfter ?? "?"} ms — reason: ${st.reason} (${st.detail})${c.reset}`);
+    log(`  swarm results: ${counts.paid} paid before the trip, ${counts.refused} vouchers rejected (conflicting/duplicate), ${counts.cutOff} workers cut off`);
+    log(`  every voucher and channel open from vault ${vault.slice(0, 10)}… is now refused until the owner acts (or ${new Date(st.reopensAt ?? 0).toLocaleTimeString()})`);
+    if (process.env.HCS_TOPIC_ID) log(`  audit (HCS): https://hashscan.io/testnet/topic/${process.env.HCS_TOPIC_ID}  (event CircuitTripped)`);
+    log(`${c.bold}  owner: one tap "Freeze all" in the app, or \`pnpm owner freeze\` — revokes ${st.sessionsSeen?.length ?? 0} session(s) with the Falcon key only, no World check${c.reset}`);
+  } else {
+    log(`${c.red}  breaker did not trip (${JSON.stringify(st.metrics)}) — thresholds too high for this burst?${c.reset}`);
+  }
+}
+
 async function scenarioQ() {
   const { qdayDrill, qdayCheckOldKey } = await import("./qday.js");
   if (args.includes("--check")) return qdayCheckOldKey();
   await qdayDrill();
 }
 
-const main = { a: scenarioA, b: scenarioB, c: scenarioC, h: scenarioH, q: scenarioQ, stats: printStats, session: printSession }[scenario as "a"];
+const main = { a: scenarioA, b: scenarioB, c: scenarioC, d: scenarioD, h: scenarioH, q: scenarioQ, stats: printStats, session: printSession }[scenario as "a"];
 if (!main) {
-  console.log("usage: agent a [--calls N] | b [--cap 500] | c | h [--calls N] | q [--check] (Q-Day drill; --check re-tests the retired key) | stats | session   (env: AGENT_VAULT, AGENT_SESSION)");
+  console.log("usage: agent a [--calls N] | b [--cap 500] | c | d [--workers 20] (swarm burst) | h [--calls N] | q [--check] (Q-Day drill; --check re-tests the retired key) | stats | session   (env: AGENT_VAULT, AGENT_SESSION)");
   process.exit(1);
 }
 main().catch((e) => {

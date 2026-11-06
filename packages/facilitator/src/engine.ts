@@ -26,6 +26,7 @@ import {
 import { KeyedMutex, RateLimiter, Relayer, RelayerError } from "@leash/relayer";
 import type { ChannelRow, Store } from "./db.js";
 import type { AuditSink } from "./audit.js";
+import type { CircuitBreaker } from "./breaker.js";
 
 export type EngineConfig = {
   chainId: number;
@@ -74,6 +75,7 @@ export class ChannelEngine {
     readonly client: PublicClient,
     readonly audit: AuditSink,
     private readonly isLeashVault: (vault: Address) => Promise<boolean>,
+    readonly breaker?: CircuitBreaker,
   ) {
     this.voucherLimiter = new RateLimiter(Math.max(5, cfg.vouchersPerSessionPerSec * 5), cfg.vouchersPerSessionPerSec);
   }
@@ -130,6 +132,11 @@ export class ChannelEngine {
     const cumulative = BigInt(p.cumulativeAmount);
     const price = BigInt(req.amount);
 
+    // F2 circuit breaker: every paid-request attempt counts (accepted or not); an open breaker stops the vault
+    if (this.breaker) {
+      if (countRate) this.breaker.recordRequest(p.vault, p.session);
+      if (this.breaker.isOpen(p.vault)) return invalid(INVALID.circuitOpen, this.breaker.status(p.vault).detail);
+    }
     if (countRate && !this.voucherLimiter.take(`session:${p.session.toLowerCase()}`)) return invalid(INVALID.rateLimited);
 
     let signer: Address;
@@ -225,6 +232,22 @@ export class ChannelEngine {
       throw new RelayerError("rate_limited", "too many channel opens");
     }
     if (!(await this.isLeashVault(r.vault))) throw new RelayerError("not_allowed", "vault was not created by the Leash factory");
+    if (this.breaker) {
+      let session: Address = "0x0000000000000000000000000000000000000000";
+      try {
+        session = await recoverTypedDataAddress({
+          domain: leashDomain(this.cfg.chainId, r.vault),
+          types: leashTypes,
+          primaryType: "OpenChannel",
+          message: { vault: r.vault, merchant: r.merchant, amount: BigInt(r.amount), expiry: BigInt(r.expiry), sessionNonce: BigInt(r.sessionNonce) },
+          signature: body.sig,
+        });
+      } catch {
+        /* the vault will reject a bad signature in simulation */
+      }
+      this.breaker.recordChannelOpen(r.vault, session);
+      if (this.breaker.isOpen(r.vault)) throw new RelayerError("circuit_open", this.breaker.status(r.vault).detail ?? "circuit breaker open");
+    }
     const req = {
       vault: r.vault,
       merchant: r.merchant,
