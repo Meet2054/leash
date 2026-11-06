@@ -118,3 +118,47 @@ export function describeOp(op: Op, fmt: (atomic: bigint) => string = (a) => a.to
       return `Unknown action ${op.action}`;
   }
 }
+
+// ------------------------------------------------------------------ F8.2 canonical decoding (client side)
+
+const amt = (x: bigint) => `${x} (${x / 1_000_000n}.${(x % 1_000_000n).toString().padStart(6, "0")} USDT)`;
+const when = (t: bigint) => `${t} (${t === 0n ? "never" : new Date(Number(t) * 1000).toISOString()})`;
+
+function canonOps(action: number, data: Hex): string[] {
+  switch (action) {
+    case Action.ADD_SESSION:
+    case Action.SET_SESSION_LIMITS: {
+      const [s, expiry, cap] = decodeAbiParameters(SESSION_PARAMS, data);
+      return [`${ACTION_NAMES[action as Action]} session ${s.toLowerCase()} · cap ${amt(cap)} · expiry ${when(expiry)}`];
+    }
+    case Action.REVOKE_SESSION:
+      return [`REVOKE_SESSION session ${decodeAbiParameters([{ type: "address" }], data)[0].toLowerCase()}`];
+    case Action.SET_MERCHANT: {
+      const [m, daily, max] = decodeAbiParameters(MERCHANT_PARAMS, data);
+      return [`SET_MERCHANT merchant ${m.toLowerCase()} · dailyCap ${amt(daily)} · maxChannel ${amt(max)}`];
+    }
+    case Action.REMOVE_MERCHANT:
+      return [`REMOVE_MERCHANT merchant ${decodeAbiParameters([{ type: "address" }], data)[0].toLowerCase()}`];
+    case Action.WITHDRAW: {
+      const [to, amount] = decodeAbiParameters([{ type: "address" }, { type: "uint256" }], data);
+      return [`WITHDRAW to ${to.toLowerCase()} · amount ${amt(amount)}`];
+    }
+    case Action.ROTATE_PQ_KEY:
+      return [`ROTATE_PQ_KEY newKeyHash ${decodeAbiParameters([{ type: "bytes32" }], data)[0].toLowerCase()}`];
+    case Action.SET_VERIFIER:
+      return [`SET_VERIFIER verifier ${decodeAbiParameters([{ type: "address" }], data)[0].toLowerCase()}`];
+    case Action.BATCH:
+      return decodeOps(data).flatMap((o) => canonOps(o.action, o.data));
+    default:
+      return [`UNKNOWN action ${action} data ${data}`];
+  }
+}
+
+/**
+ * F8.2: one line per op of the MandateChange the owner's device is about to sign, plus a header binding
+ * chain, vault, nonce and deadline. The attestor decodes the same bytes with its own decoder
+ * (apps/web/lib/server/decode.ts); the approval screen shows both and refuses to sign on any mismatch.
+ */
+export function canonicalChange(chainId: number, vault: Address, change: { action: number; data: Hex; nonce: bigint; deadline: bigint }): string[] {
+  return [`chain ${chainId} · vault ${vault.toLowerCase()} · nonce ${change.nonce} · deadline ${when(change.deadline)}`, ...canonOps(change.action, change.data)];
+}

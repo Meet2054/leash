@@ -15,6 +15,7 @@ import {
 import { CHAIN_ID, FACILITATOR_URL, RPC_URL, WORLD, attestorKey, deployment, APP_URL } from "./env";
 import { db, getApproval, getAttempt, insertAttempt, loosenings, newId, now, recordLoosenings, setApproval, setAttempt, type AttemptRow } from "./db";
 import { mintMockIdToken, pollDeviceToken, startDeviceAuth, validateIdToken, type ValidatedIdentity } from "./world";
+import { serverDecode } from "./decode";
 import { effectsOf, evaluate, policyFromEnv, recordsOf, type CurrentState, type Effect, type LooseningRecord, type PolicyDecision } from "./policy";
 
 export const publicClient = createPublicClient({ chain: whitechainSepolia, transport: http(RPC_URL) });
@@ -88,6 +89,7 @@ export type StartedAttempt = {
   expiresAt: number;
   change?: { action: number; data: Hex; nonce: string; deadline: string };
   changeHash?: Hex;
+  serverDecoded?: string[];
 };
 
 async function beginWorld(id: string, pinnedSub?: string) {
@@ -162,6 +164,7 @@ export async function startApprovalAttempt(approvalId: string): Promise<StartedA
     expiresAt: w.expires_at,
     change: { action: change.action, data: change.data, nonce: change.nonce.toString(), deadline: change.deadline.toString() },
     changeHash,
+    serverDecoded: serverDecode(CHAIN_ID, vault, change),
   };
 }
 
@@ -234,6 +237,12 @@ async function complete(at: AttemptRow, idToken: string, mocked: boolean): Promi
     return fail(at, "DENIED", `ID token rejected: ${e instanceof Error ? e.message : e}`);
   }
   if (at.kind === "approval") {
+    const ap = at.approval_id ? getApproval(at.approval_id) : undefined;
+    if (ap && ap.status !== "APPROVING") {
+      // the owner denied while the World check was open: never sign for it
+      setAttempt(at.id, { status: "DENIED", status_reason: `approval is ${ap.status}; nothing signed`, device_code: null });
+      return getAttempt(at.id)!;
+    }
     const vault = getAddress(at.vault!);
     const subjectOnchain = await publicClient.readContract({ address: vault, abi: leashVaultAbi, functionName: "worldSubjectHash" });
     if (subjectOnchain.toLowerCase() !== who.subjectHash.toLowerCase()) {
@@ -346,6 +355,13 @@ async function sign(at: AttemptRow, who: ValidatedIdentity, mocked: boolean): Pr
 /** What the browser may see about an attempt (never the device_code). */
 export function publicAttempt(at: AttemptRow) {
   const wa = at.wa_json ? JSON.parse(at.wa_json) : null;
+  const change = at.kind === "approval" && at.change_json ? JSON.parse(at.change_json) : null;
+  // F8.2: decode the exact bytes behind changeHash on the server, after re-deriving the hash from them
+  let serverDecoded: string[] | null = null;
+  if (change && at.vault) {
+    const digest = mandateChangeDigest(CHAIN_ID, getAddress(at.vault), { action: change.action, data: change.data, nonce: BigInt(change.nonce), deadline: BigInt(change.deadline) });
+    serverDecoded = digest.toLowerCase() === at.change_hash?.toLowerCase() ? serverDecode(CHAIN_ID, at.vault, change) : ["SERVER ERROR: stored change does not hash to changeHash"];
+  }
   let initConfig = null;
   if (at.kind === "create" && at.status === "APPROVED" && at.change_json) {
     const c = JSON.parse(at.change_json);
@@ -363,7 +379,8 @@ export function publicAttempt(at: AttemptRow) {
     expiresAt: at.expires_at,
     vault: at.vault,
     changeHash: at.change_hash,
-    change: at.kind === "approval" && at.change_json ? JSON.parse(at.change_json) : null,
+    change,
+    serverDecoded,
     initConfig,
     authTime: at.auth_time,
     worldApproval: wa,

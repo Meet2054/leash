@@ -16,6 +16,7 @@
 import { formatUnits, getAddress, type Address, type Hex } from "viem";
 import {
   Action,
+  canonicalChange,
   describeOp,
   encode,
   encodeOps,
@@ -190,7 +191,7 @@ async function cmdStatus() {
 // ------------------------------------------------------------------ scripted owner decisions (same API as the phone UI)
 
 type ApprovalView = { id: string; status: string; description: string; reason: string; source: string };
-type AttemptView = { status: string; cooldownUntil?: number | null; reason: string | null; verificationUriComplete: string | null; userCode: string | null; mode: string; changeHash: Hex; change: { action: number; data: Hex; nonce: string; deadline: string } | null; vault: Address };
+type AttemptView = { status: string; serverDecoded?: string[] | null; cooldownUntil?: number | null; reason: string | null; verificationUriComplete: string | null; userCode: string | null; mode: string; changeHash: Hex; change: { action: number; data: Hex; nonce: string; deadline: string } | null; vault: Address };
 
 async function web<T>(path: string, body?: unknown): Promise<T> {
   const r = await fetch(`${INBOX_URL}${path}`, body === undefined ? {} : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -245,6 +246,13 @@ async function cmdApprove(id?: string) {
   const change = { action: at.change.action, data: at.change.data, nonce: BigInt(at.change.nonce), deadline: BigInt(at.change.deadline) };
   const digest = mandateChangeDigest(CHAIN_ID, v.vault, change);
   if (digest.toLowerCase() !== at.changeHash.toLowerCase()) throw new Error("change hash mismatch — refusing to sign");
+  // F8.2: show the attestor's decoding next to ours; any difference blocks signing
+  const mine = canonicalChange(CHAIN_ID, v.vault, change);
+  const theirs = at.serverDecoded ?? [];
+  const same = mine.length === theirs.length && mine.every((l, i) => l === theirs[i]);
+  console.log(`  decoded by the attestor        | decoded here (bytes we sign)  → ${same ? "✓ match" : "✕ MISMATCH"}`);
+  mine.forEach((l, i) => console.log(`    ${theirs[i] === l ? " " : "✕"} ${l}${theirs[i] === l ? "" : `\n      attestor: ${theirs[i] ?? "(missing)"}`}`));
+  if (!same) throw new Error("decoding mismatch — refusing to sign");
   console.log("  ✓ World check passed; signing the change with the owner's ETHFALCON key…");
   const r = await web<{ txHash: Hex; gasUsed: string }>(`/api/approvals/${a.id}/submit`, { pqPubKey: k.pubKey, pqSig: falconSign(digest) });
   console.log(`✔ approved + applied onchain (gas ${r.gasUsed}): ${tx(r.txHash)}`);

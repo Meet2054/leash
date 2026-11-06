@@ -19,6 +19,7 @@ export type Attempt = {
   initConfig: { pqPubKeyHash: `0x${string}`; worldSubjectHash: `0x${string}`; verifier: `0x${string}`; initialMandate: `0x${string}` } | null;
   authTime: number | null;
   cooldownUntil?: number | null;
+  serverDecoded?: string[] | null;
   effects?: unknown[] | null;
 };
 
