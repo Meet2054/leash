@@ -91,6 +91,38 @@ flowchart LR
 
 There is **no ECDSA owner path anywhere**: the only root authority is the post-quantum key. The verifier address is part of the vault config, so switching to a new PQ scheme is itself a loosening action.
 
+## Threat model: signing-pipeline and blind-signing attacks
+Two kinds of large exchange losses came without the attacker ever holding a key:
+- **Binance-style: the signing pipeline.** Valid keys sign whatever a compromised pipeline feeds them.
+- **Bybit-style: the UI / blind signing.** In Feb 2025 the signers approved a transaction that a tampered wallet UI showed as routine (about $1.5B lost).
+
+Leash's loosening path is a signing pipeline with a human in it, so it bounds both:
+
+| Attacker controls | What they try | What stops or bounds it | Code |
+|---|---|---|---|
+| The **agent** (prompt injection, the Cornell scenario) | raise its own cap | It can only *ask* (`requestLoosening`). `applyChange` needs the owner's Falcon key + World approval | `LeashVault.applyChange`, Scenario B |
+| The **attestor / approval pipeline** | feed the owner a different change, or approve a big one fast | **Two-key split** (onchain): the attestor alone can't loosen. The owner's device **recomputes the digest** and never signs a server-supplied hash. The **attestor policy** (F8.1) caps raises at 2× per 24 h, adds a daily ceiling and a cooldown on large withdrawals, and publishes every pending loosening to **HCS** before anyone approves it | `test_trustSplit_*`, `apps/web/lib/server/policy.ts` |
+| The **owner's approval UI** (Bybit) | show one change, get a signature on another | **Two independent decoders** (F8.2): the attestor decodes the bytes behind `changeHash` server-side, and the device decodes the exact bytes it will sign. They sit side by side, and any **mismatch blocks** signing. The device signs only the byte-identical change that was reviewed | `apps/web/lib/server/decode.ts`, `canonicalChange` in `packages/sdk/src/actions.ts`, `DecodePanel.tsx` |
+| The **owner's browser storage** | copy the Falcon key | The seed is **encrypted at rest** with a passkey-derived key (F8.3: WebAuthn PRF → HKDF → AES-256-GCM). It is decrypted only after user verification and auto-locks after 10 min | `apps/web/lib/client/passkey.ts` |
+| A **large withdrawal** that slipped through | drain the vault | **Cooldown** (default 15 min) after the World check, before the attestor signs. **Deny** or any PQ-signed change (e.g. *Freeze all*) cancels it, because it bumps `mandateNonce` | `advanceCooldown` in `attestor.ts`, `apps/agent/src/f8-smoke.ts` |
+
+**Residual risk (honest):**
+- The attestor policy is **off-chain**. A fully compromised attestor could skip it, but it still needs the owner's Falcon signature over a change the owner's device decodes itself.
+- Both decodings render in the same browser, so a **fully compromised owner device** can lie about both. What still holds:
+  - World's personhood check
+  - the policy limits per 24 h
+  - the withdrawal cooldown
+  - the HCS record
+  - PQ-only tightening from any device that holds the backup
+
+**Live evidence (Whitechain 1874, MOCKED World, scratch DB):**
+- `f8-smoke.ts` passed 7/7 checks:
+  - a 3× raise refused before the World check
+  - a withdrawal held in cooldown, then cancelled by Deny
+  - another cancelled by a PQ-only tightening ([tx](https://explorer.testnet.whitechain.io/tx/0x14b4fceb433cd9b8260142b454c22fc73680dff449475579bbe2281ebb1888a1))
+  - a third signed only after the cooldown, and its submit refused after a later Deny
+- The pending, blocked, cooldown and cancelled events are HCS messages #41–#49 on [topic 0.0.11329753](https://hashscan.io/testnet/topic/0.0.11329753).
+
 ## Post-quantum, live: PQ Ledger and the Q-Day drill
 - **PQ Ledger** (owner app → **PQ** tab, `GET /facilitator/pq-ledger`) lists every transaction in which a Falcon-512 signature was verified onchain. Each signature and key is decoded from calldata, and the verify cost is measured by re-running it through the verifier. Today: **4 PQ-verified txs**, about **1.56M gas per Falcon verify (82–97% of each tx)**, against 300 payments that carried no PQ cost.
 - **Q-Day drill** (`pnpm agent q`): the owner's post-quantum root is rotated live, **same vault, same money, new root of trust**.
@@ -222,6 +254,8 @@ Tests: `pnpm test` (forge 71 tests + vitest).
 - World ID so far exercised only with the **MOCKED** issuer (see above). The first vault was bootstrapped from the CLI with a locally signed attestation (**MOCKED**).
 - The facilitator's and attestor's state lives in local SQLite. The attestor key is a single hot key.
 - The relayer's fee-to-WBT swap is described, not built.
+- The **attestor policy (F8.1) is off-chain**: the attestor enforces it, not the contract. Its 24 h history lives in the attestor's SQLite and counts a loosening as soon as the attestor signs, even if it is never submitted. Defaults: 2× per 24 h, 100 USDT/day, a 15 min cooldown above 5 USDT; all set through `POLICY_*` env.
+- **Passkey encryption (F8.3)** needs the WebAuthn PRF extension: Chrome/Edge 116+ or Safari 18+, with a PRF-capable passkey. Without it the Falcon seed stays unencrypted in IndexedDB, and the app says so. Safari may need the unlock to happen right on a tap.
 - ZKNox's ETHFALCON is experimental and unaudited ("not for production"), and so is this code.
 - Hedera: settles in HBAR until the Circle USDC faucet delivers. Each paid request is a separate settlement, and the mandate is enforced by the facilitator (off-chain).
 - **Relayer and attestor are fixed in the factory** (immutables of the vault implementation), so rotating either key means deploying a new factory.

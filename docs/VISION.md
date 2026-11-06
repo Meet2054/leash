@@ -117,6 +117,7 @@ Re-plan backwards from the deadline after every milestone. If less than 6 hours 
 **Acceptance:** a verify script passes; tampering with one stored row makes it fail (vitest); an HCS link in the README.
 
 ### F8 — Bybit/Binance hardening (P2, **no contract change**)
+**Status (2026-11-06 14:20 IST): done**: `apps/web/lib/server/policy.ts`, `decode.ts`, `lib/client/passkey.ts`, README "Threat model"; live evidence in LEASH_STATUS §12.
 **Why:** the two largest exchange incidents were not key thefts. Binance-style failures come from the **signing pipeline**, where valid keys sign what a compromised pipeline feeds them. Bybit-style failures come from the **UI / blind signing**, where humans approve a change they can't actually see. Leash's loosening path is a signing pipeline with a human in it, so it must bound both.
 **Build:**
 1. **Attestor policy**, enforced before any WorldApproval is signed:

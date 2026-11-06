@@ -29,7 +29,7 @@ Open blockers (HUMAN): World IdP credentials (the real World check is so far **M
 
 ## 5. Tests
 - forge: **75/75** passed (LeashVaultTest 63 incl. 4 new `test_trustSplit_*`, EthFalconTest 8, FalconE2ETest 3, Eip712VectorsTest 1). No failures.
-- vitest: 42/42 passed (sdk 10, relayer 10, facilitator 18 = e2e 6 + breaker 7 + flight 5, web WASM-Falcon 4). No failures. `packages/hedera` has no unit tests yet (exercised live by `pnpm agent h`).
+- vitest: 65/65 passed (sdk 10, relayer 10, facilitator 18 = e2e 6 + breaker 7 + flight 5, web 27 = WASM-Falcon 4 + F8 policy 7 + decode parity 11 + passkey crypto 5). No failures. `packages/hedera` has no unit tests yet (exercised live by `pnpm agent h`).
 - Gas: openChannel 164,512 · claim ~101k avg onchain (≤ 93,360 in forge) · applyChange (real Falcon, loosening) 1,651,264 onchain · createVault (real Falcon) 1,898,270 onchain
 
 ## 6. Metrics
@@ -100,19 +100,20 @@ bdc81d8 fix(facilitator,sdk): one rate-limit token per paid request; resync clie
 ```
 
 ## 11b. All-protocol test pass (13:47 IST)
-- forge 75/75 · vitest 42/42 · typecheck all packages · web production build ✓
+- forge 75/75 · vitest 65/65 (after F8, 14:20 IST) · typecheck all packages · web production build ✓ (re-run after F8)
 - Whitechain live: 6 paid calls → claim https://explorer.testnet.whitechain.io/tx/0x62429de55439b83f1bf0d094a632218dbadef40af1a904b57e68024f9f41c776 (total 339 vouchers → 15 claims)
 - Hedera live: 2 payments settled (e.g. https://hashscan.io/testnet/transaction/0.0.11329302@1793952992.606850730), 6 HBAR refused (human approval required)
 - F1 PQ Ledger 4 entries · F2 breaker closed · F4 verify-log 4/4 match HCS
 - World: credentials ✓, real IdP denied path ✓ (attempt 577a3417, HCS #23); **real approval pending** the sandbox identity issuance (~1 h after Manual verify)
 
-## 12. Features F1–F7
+## 12. Features F1–F8
 | Feature | Status | Evidence | Tests |
 |---|---|---|---|
 | F1 PQ Ledger + Q-Day drill | ✅ done (rotation's World approval **MOCKED**) | PQ Ledger: 4 PQ-verified txs (~1.56M verify gas, 82–97% of tx gas); rotation https://explorer.testnet.whitechain.io/tx/0x1c4fc9b384bad46fdf5d319f62af0011fecf52da918ada3d2b51f3844279a784 · new-key tightening https://explorer.testnet.whitechain.io/tx/0x8543b2c0be8a95ff9a68ee32ed0c811218f5e4d07ed51061db6c51761f8f113e · retired key → `WrongPqKey` (simulated) | forge `test_rotatePqKey_oldKeyStopsWorking` |
 | F2 circuit breaker (Scenario D) | ✅ done (facilitator-enforced) | Scenario D live: 20 workers cut off after 271 ms (velocity 151/10 s); HCS https://hashscan.io/testnet/topic/0.0.11329753 #11 `CircuitTripped`; Freeze all in the app + `pnpm owner freeze` | vitest 7 (breaker) |
 | F3 reorg-safe settlement | ✅ done | batcher reconciles recent claims vs chain, rolls back + resyncs nonce + re-claims latest voucher; `ClaimReorged` audit event | vitest e2e "F3 reorg safety" (evm_snapshot/evm_revert) |
 | F4 agent flight recorder | ✅ done | per-claim Merkle roots on HCS 0.0.11329753; `pnpm verify-log` → 3/3 match (claim https://explorer.testnet.whitechain.io/tx/0x158e0058f3bd3715287f07f66fe10f2d2c6202ff97dcb393a8b9f7c58843e2e0 …) | vitest 5 (tamper/delete detected) |
+| F8 Bybit/Binance hardening | ✅ done (no contract change; live run used **MOCKED** World) | **F8.1** attestor policy: 2×/24 h raise limit, 100 USDT/day ceiling, 15 min withdrawal cooldown cancellable by Deny or any PQ-signed change; `f8-smoke.ts` 7/7 live on 1874 (tightening during cooldown https://explorer.testnet.whitechain.io/tx/0x14b4fceb433cd9b8260142b454c22fc73680dff449475579bbe2281ebb1888a1); HCS #41–#49 Loosening* events. **F8.2** two independent decoders side by side, mismatch blocks (live: identical for a real request). **F8.3** Falcon seed encrypted at rest with a passkey (WebAuthn PRF → HKDF → AES-GCM); the browser prompt itself is **not yet manually tested**. **F8.4** README "Threat model" | vitest policy 7 + decode parity 11 + passkey crypto 5 |
 | F5 one human, one budget | P3 | — | — |
 | F6 never-callable-by-session list | P3 (partly covered: `test_wrongPqPubKey_reverts_agentCannotChangeOwnMandate`, trust-split tests) | — | — |
 | F7 Break-the-Leash arena | P3 | — | — |
