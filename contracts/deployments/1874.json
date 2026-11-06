@@ -41,9 +41,9 @@
   },
   "sources": {
     "repo": "this repository",
-    "deployCommit": "b21410a43bed13921f24e917da279b51028cdabc",
-    "contractsSourceCommit": "7622a82f59896670ef87f195d480ad31188ac1ee",
-    "deployScriptCommit": "64c9662e4dfe21ef75d5b06c481383c2e759c3d5",
+    "deployCommit": "41ea8f946417a8674090511ac49cbbf93e260428",
+    "contractsSourceCommit": "ae2bcd214436a709a913591a8e04a916d86f2e83",
+    "deployScriptCommit": "08572f559bdd485f8f3d5f0393944a67eb6a3d45",
     "zknoxEthfalcon": {
       "repo": "https://github.com/ZKNoxHQ/ETHFALCON",
       "commit": "43ac863e30281bb7821748178d39967367d54bc2"

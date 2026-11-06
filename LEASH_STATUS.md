@@ -79,7 +79,7 @@ Open blockers (HUMAN): World IdP credentials (the real World check is so far **M
 - Data math: lead with **~584× (Falcon both sides)**, ~876× vs ML-DSA-44 second (review 09:10).
 - Full memory of the build: `docs/PROJECT_JOURNAL.md`.
 - Two-key trust split stated in the README and proven in tests: the attestor alone can't loosen, and the PQ key alone can only tighten.
-- Reproducible deploy record: `contracts/deployments/1874.json` (deploy txs, solc 0.8.25, cancun, ZKNox `43ac863`, deploy commit `b21410a`); the live bytecode of all 4 contracts exactly matches a local build (immutables masked).
+- Reproducible deploy record: `contracts/deployments/1874.json` (deploy txs, solc 0.8.25, cancun, ZKNox `43ac863`, deploy commit `41ea8f9`); the live bytecode of all 4 contracts exactly matches a local build (immutables masked).
 - Review 09:10 items: 1 deadline placeholder (awaiting date) · 2 ✅ · 3 ✅ · 4 ✅ · 5 ✅ · 6 ✅ kit ready · 7 ⏳ World credentials · 8 ⏳ demo vault (after real World + hosting; fallback before 2026-11-07 00:08 IST).
 
 ## 10. Questions for the reviewer
@@ -88,15 +88,15 @@ Open blockers (HUMAN): World IdP credentials (the real World check is so far **M
 
 ## 11. Commit log since last report (git log --oneline)
 ```
-b17cd4d docs(memory): submission deadline placeholder + backward plan (review item 1)
-aa22463 feat(hedera): asset-configurable Hedera endpoints; live HBAR settlements + HCS log
-635bedc chore(hedera): switch to rotated operator 0.0.11329302, new HCS topic 0.0.11329753
-caa3de8 feat(hedera): x402 exact on hedera:testnet via our facilitator + HCS audit log
-47329d1 docs(status): tick README/feedback/debrief items, link project journal
-38aa2ef docs: project journal — complete memory of the build (vision, taste, timeline, failures + root causes, runbook, human asks)
-8d0e10a docs: Whitechain feedback, World debrief, 3:30 demo script; agent env overrides
-44bf22f docs: first live USDT claims on Whitechain — 300 x402 payments in 10 claims
-bdc81d8 fix(facilitator,sdk): one rate-limit token per paid request; resync client state on 402
+716f3ba docs(memory): submission deadline placeholder + backward plan (review item 1)
+38b7224 feat(hedera): asset-configurable Hedera endpoints; live HBAR settlements + HCS log
+98d86a6 chore(hedera): switch to rotated operator 0.0.11329302, new HCS topic 0.0.11329753
+acab5c7 feat(hedera): x402 exact on hedera:testnet via our facilitator + HCS audit log
+4a29caf docs(status): tick README/feedback/debrief items, link project journal
+9b41a4f docs: project journal — complete memory of the build (vision, taste, timeline, failures + root causes, runbook, human asks)
+80240a1 docs: Whitechain feedback, World debrief, 3:30 demo script; agent env overrides
+cf939a6 docs: first live USDT claims on Whitechain — 300 x402 payments in 10 claims
+1105cea fix(facilitator,sdk): one rate-limit token per paid request; resync client state on 402
 ```
 
 ## 11b. All-protocol test pass (13:47 IST)

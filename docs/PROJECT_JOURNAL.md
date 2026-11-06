@@ -49,32 +49,32 @@ Track: **From Scratch** (all code written during the event; AI use disclosed; MI
 |---|---|---|
 | 11-05 ~23:15 | Spec pasted (CLAUDE.md). M0 read-only env checks: RPC, USDT, opcodes, state overrides, ETHFALCON gas via state override (1.53M) | CLAUDE.md §14 VERIFY table |
 | 11-05 23:28 | Asked about pre-kickoff timing; the human said the hackathon had already started | — |
-| 11-05 23:34 | Repo + first commit; keys generated into `.env` | `5bcb7b8` |
-| 11-05 23:43 | M1: contracts + 67 tests green | `7622a82`, `3d86606` |
-| 11-05 23:48 | Python Falcon signer; M2 cross-check (off-chain sigs verify onchain) | `e7fd891`, `569e021` |
-| 11-05 23:50 | Deploy script dry-run on an anvil fork of 1874; research notes saved | `64c9662`, `d9c5ee0` |
-| 11-05 23:54–00:06 | SDK (EIP-712 shared vectors), relayer, facilitator, merchant; anvil e2e 30 calls → 3 claims | `d48ce8b`…`a61ebbc` |
+| 11-05 23:34 | Repo + first commit; keys generated into `.env` | `7907766` |
+| 11-05 23:43 | M1: contracts + 67 tests green | `ae2bcd2`, `2eebd8f` |
+| 11-05 23:48 | Python Falcon signer; M2 cross-check (off-chain sigs verify onchain) | `4432752`, `991aec9` |
+| 11-05 23:50 | Deploy script dry-run on an anvil fork of 1874; research notes saved | `08572f5`, `c96b42a` |
+| 11-05 23:54–00:06 | SDK (EIP-712 shared vectors), relayer, facilitator, merchant; anvil e2e 30 calls → 3 claims | `c128eab`…`c4a09c7` |
 | 11-06 ~00:00 | Human claimed the faucet: 2 WBT → relayer (tx `0x7569…42c6`) | — |
-| 11-06 00:06 | **Deployed + verified on Whitechain 1874**; **gate M2 PASS** on the deployed verifier | `e2cb6b4` |
-| 11-06 00:08 | Owner CLI; **first vault created with an onchain Falcon check** (`0x8229…d298`) | `c3bc05b` |
-| 11-06 00:10 | Scripted agent (A/B/C) | `8399dfb` |
-| 11-06 00:23 | Owner web app + World attestor; **gate M5 PASS** (in-browser WASM Falcon) | `978d7b9`, `9c9498d` |
-| 11-06 00:25 | **Scenario B live:** deny → nothing; approve → cap 5→8 (`0x36e2…c1ab`) | `cb21ff2` |
-| 11-06 00:27 | LEASH_STATUS + README | `de3524c`, `6723d80` |
+| 11-06 00:06 | **Deployed + verified on Whitechain 1874**; **gate M2 PASS** on the deployed verifier | `fdde63c` |
+| 11-06 00:08 | Owner CLI; **first vault created with an onchain Falcon check** (`0x8229…d298`) | `64216be` |
+| 11-06 00:10 | Scripted agent (A/B/C) | `2e97cd6` |
+| 11-06 00:23 | Owner web app + World attestor; **gate M5 PASS** (in-browser WASM Falcon) | `a01ab96`, `47f1866` |
+| 11-06 00:25 | **Scenario B live:** deny → nothing; approve → cap 5→8 (`0x36e2…c1ab`) | `d8597e9` |
+| 11-06 00:27 | LEASH_STATUS + README | `d2252e0`, `aece38b` |
 | 11-06 00:33 | Swapped 0.3 WBT → 21.93 USDT into the vault (`0x9eab…cb9`) | — |
-| 11-06 00:34–00:37 | **First real USDT claims**; Scenario A **300 paid calls → 10 claims**; fixed the self-throttle bug | `bdc81d8`, `44bf22f` |
-| 11-06 00:56 | Whitechain feedback, World debrief, demo script, this journal | `8d0e10a`+ |
-| 11-06 ~01:40–02:00 | Hedera: human created portal accounts (rotated once); bootstrap created the HCS topic + agent/merchant; Circle USDC faucet never delivered (first went to Arc, then the faucet stalled) | `caa3de8`, `635bedc` |
-| 11-06 14:00–14:20 | **F8 Bybit/Binance hardening:** attestor policy (R1 2×/24 h, R2 daily ceiling, R3 withdrawal cooldown, cancel on Deny or nonce bump, Loosening* events to HCS #41–#49), independent server/client decoding (mismatch blocks), passkey (PRF) encrypted Falcon seed, README threat model. `f8-smoke.ts` 7/7 live on 1874 (MOCKED World); vitest 49 → 65 | `3c24e80`, `db9b29a`, `f1f4636` |
+| 11-06 00:34–00:37 | **First real USDT claims**; Scenario A **300 paid calls → 10 claims**; fixed the self-throttle bug | `1105cea`, `cf939a6` |
+| 11-06 00:56 | Whitechain feedback, World debrief, demo script, this journal | `80240a1`+ |
+| 11-06 ~01:40–02:00 | Hedera: human created portal accounts (rotated once); bootstrap created the HCS topic + agent/merchant; Circle USDC faucet never delivered (first went to Arc, then the faucet stalled) | `acab5c7`, `98d86a6` |
+| 11-06 14:00–14:20 | **F8 Bybit/Binance hardening:** attestor policy (R1 2×/24 h, R2 daily ceiling, R3 withdrawal cooldown, cancel on Deny or nonce bump, Loosening* events to HCS #41–#49), independent server/client decoding (mismatch blocks), passkey (PRF) encrypted Falcon seed, README threat model. `f8-smoke.ts` 7/7 live on 1874 (MOCKED World); vitest 49 → 65 | `3f52602`, `23e4645`, `9ea3056` |
 | 11-06 13:28–13:44 | **Real World IdP (sandbox):** credentials work; first attempt → sandbox app "Failed to share" (identity likely still issuing) → IdP `access_denied` → DENIED, nothing signed, HCS #23. Real denied path captured | this commit |
 | 11-06 13:47 | All-protocol test pass: forge 75/75, vitest 42/42, web prod build ✓; Whitechain 6 calls → claim `0x6242…c776`; Hedera 2 settled + 1 refused; verify-log 4/4. Only the real World approval is open (identity issuing) | this commit |
-| 11-06 10:54 | Deadline confirmed: submission **2026-11-07 04:54 IST**, build cutoff **22:54 IST** (last 6 h = pitch) | `76af000` |
+| 11-06 10:54 | Deadline confirmed: submission **2026-11-07 04:54 IST**, build cutoff **22:54 IST** (last 6 h = pitch) | `434df11` |
 | 11-06 11:15 | **F4 live:** flight recorder; 20 paid calls → 3 claims → 3 FlightRecord roots on HCS; `pnpm verify-log` 3/3 match | this commit |
 | 11-06 11:12 | **F3:** reorg-safe settlement (claim reconciliation + nonce resync), anvil rollback test green | this commit |
-| 11-06 11:11 | **F2 live:** circuit breaker; Scenario D tripped after 271 ms (20 workers); HCS #11 `CircuitTripped`; breaker reset after the test | `4fd5671` |
-| 11-06 10:58 | **F1 live:** PQ Ledger (4 PQ-verified txs) + Q-Day drill (rotation `0x1c4f…a784`, old key → WrongPqKey, new-key tightening `0x8543…113e`; World approval MOCKED) | `61b441f` |
-| 11-06 10:48 | VISION.md added (strict P0→P3); World sandbox docs re-read: attestor matches "Human checkpoints"; now pins the linked `sub`; developer MCP path documented; no Agent Pass workshop exists (only IDKit's) | `426d004`+ |
-| 11-06 09:10–09:30 | Review round: deadline placeholder, LEASH_STATUS regenerated, data math leads with 584×, gitleaks clean, deploy kit (Caddy + pm2), trust-split tests (forge 75/75), reproducible deploy record (bytecode exact match) | `b17cd4d`…`e396b1c` |
+| 11-06 11:11 | **F2 live:** circuit breaker; Scenario D tripped after 271 ms (20 workers); HCS #11 `CircuitTripped`; breaker reset after the test | `ef79e72` |
+| 11-06 10:58 | **F1 live:** PQ Ledger (4 PQ-verified txs) + Q-Day drill (rotation `0x1c4f…a784`, old key → WrongPqKey, new-key tightening `0x8543…113e`; World approval MOCKED) | `e8012d6` |
+| 11-06 10:48 | VISION.md added (strict P0→P3); World sandbox docs re-read: attestor matches "Human checkpoints"; now pins the linked `sub`; developer MCP path documented; no Agent Pass workshop exists (only IDKit's) | `31f0e0b`+ |
+| 11-06 09:10–09:30 | Review round: deadline placeholder, LEASH_STATUS regenerated, data math leads with 584×, gitleaks clean, deploy kit (Caddy + pm2), trust-split tests (forge 75/75), reproducible deploy record (bytecode exact match) | `716f3ba`…`6a1e26b` |
 | 11-06 ~02:12 | **Hedera live (HBAR fallback):** 3 x402 payments settled through our facilitator (fee payer), the 6 HBAR call was refused (human approval required), 5 HCS messages | this commit |
 
 ---
@@ -130,8 +130,8 @@ Money on chain: vault 17.17 USDT left; merchants received 4.75 USDT; fees 0.010 
 | 25 | Circle faucet "Tokens sent" but no USDC on Hedera (twice) | The faucet network was set to **Arc** (Circle's own testnet; the human's link was explorer.testnet.arc.io), not Hedera Testnet | Re-request with Network = **Hedera Testnet**, Send to = `0.0.11329481` (agent). Always check the network dropdown |
 | 26 | Human rotated the Hedera operator credentials | The HCS topic only accepts its submit key (the old operator) | `pnpm hedera:bootstrap -- --new-topic` created topic `0.0.11329753` under the new operator; restarted the facilitator + merchant so the fee payer is the new account. Agent/merchant accounts have their own keys, so they're unaffected |
 | 27 | Circle's Hedera USDC faucet stalled | Its sender `0.0.11920` made no user payouts from ~01:05 to 02:10 IST, despite "Tokens sent" in the UI | Switched the Hedera endpoints to **HBAR** (`HEDERA_PAY_ASSET=hbar`), funded the agent with 20 HBAR as payment money (fees still paid by the facilitator). Switch back with `HEDERA_PAY_ASSET=usdc` |
-| 28 | Journal edit hit the wrong table row | The script changed the first line starting `\| 5 \|` (failure #5) instead of human-ask #5 in §11 | Fixed in a follow-up commit (`441f590`). Lesson: match tables by a unique anchor, not a row number |
-| 29 | Onboarding would crash on Hedera merchants | Discovery started listing Hedera endpoints (payTo `0.0.x`), and the Onboard screen fed every payTo to `getAddress` | Filter discovery by `network === eip155:<chainId>` (`e396b1c`) |
+| 28 | Journal edit hit the wrong table row | The script changed the first line starting `\| 5 \|` (failure #5) instead of human-ask #5 in §11 | Fixed in a follow-up commit (`7377b14`). Lesson: match tables by a unique anchor, not a row number |
+| 29 | Onboarding would crash on Hedera merchants | Discovery started listing Hedera endpoints (payTo `0.0.x`), and the Onboard screen fed every payTo to `getAddress` | Filter discovery by `network === eip155:<chainId>` (`6a1e26b`) |
 | 30 | Q-Day step 4 printed the vault address instead of the error name | The revert decoder took the first `0x…` blob in the error message (an address) | Shared `revertName()`: viem structured data first, then every standalone 4-byte selector; `agent q --check` now prints `WrongPqKey` |
 | 31 | Journal/status timestamps written as guesses ("~11:30") were in the future | Times were estimated instead of read from the clock | Corrected from commit times. **Rule: take times from `date` or `git log`, never estimate** |
 | 32 | The real-World CLI run printed nothing while waiting | Output piped through `sed`, which buffers until the process exits, so the verification URL never showed | Read the pending attempt (URL + user code) from the attestor DB. **Lesson: never pipe an interactive/long-waiting command through a buffering filter** |
@@ -208,7 +208,7 @@ Money on chain: vault 17.17 USDT left; merchants received 4.75 USDT; fees 0.010 
 Hedera mandate (facilitator-enforced, off-chain): ≤0.10 USDC per payment, ≤2.00 USDC/day, merchant allowlist, payments above 0.50 USDC need a human approval (refused otherwise). Endpoints: `/hedera/quote` $0.01, `/hedera/translate` $0.02, `/hedera/report` $0.60 (deliberately above the threshold). Run: `pnpm agent h`. Fund the agent: `pnpm --filter @leash/hedera run bootstrap -- --fund 5000000` once the operator has USDC.
 
 ### Reproducibility
-`contracts/deployments/1874.json` holds the deploy txs, build settings (solc 0.8.25, cancun, optimizer 10000), pinned deps (ZKNox `43ac863`, OZ v5.4.0 `c64a1ed`), deploy commit `b21410a`, contracts-source commit `7622a82`, and a bytecode check (all 4 contracts are an exact match with immutables masked). Regenerate with `DEPLOY_COMMIT=<sha> node scripts/record-deploy.mjs`; `scripts/deploy-whitechain.sh` now runs it automatically.
+`contracts/deployments/1874.json` holds the deploy txs, build settings (solc 0.8.25, cancun, optimizer 10000), pinned deps (ZKNox `43ac863`, OZ v5.4.0 `c64a1ed`), deploy commit `41ea8f9`, contracts-source commit `ae2bcd2`, and a bytecode check (all 4 contracts are an exact match with immutables masked). Regenerate with `DEPLOY_COMMIT=<sha> node scripts/record-deploy.mjs`; `scripts/deploy-whitechain.sh` now runs it automatically.
 
 ### Key transactions (Whitechain 1874)
 - Faucet → relayer `0x756972958c9f60aa8191a81cee37c08b5c43e42df72b0c8a164236932ef342c6`
