@@ -81,7 +81,8 @@ export async function runDemoAgent(vaultIn: string, callsIn: number) {
     let spentAtomic = 0n;
     let refused: string | null = null;
     for (let i = 0; i < calls; i++) {
-      const r = (i % 4 === 3 ? byPath["/translate"] : byPath["/quote"]) ?? items[i % items.length];
+      // one merchant only: a single 1-USDT channel, so small caps and small vaults still work
+      const r = byPath["/quote"] ?? items[0];
       const u = new URL(r.resource);
       if (u.pathname === "/quote") u.searchParams.set("pair", PAIRS[i % PAIRS.length]);
       if (u.pathname === "/translate") (u.searchParams.set("text", "hello agent"), u.searchParams.set("to", "hi"));

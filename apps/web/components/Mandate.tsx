@@ -27,6 +27,9 @@ export type VaultState = {
   merchants?: { address: string; allowed: boolean; dailyCap: string; spentToday: string; maxChannel: string }[];
 };
 
+/** A channel reserves 1 USDT, so a renewed agent needs a cap of at least ~2 USDT (still ≤ 2× per the safety policy). */
+const renewCap = (cap: bigint) => (cap >= 2_000_000n ? cap : cap * 2n >= 2_000_000n ? 2_000_000n : cap * 2n);
+
 function Collapsible({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
@@ -187,8 +190,8 @@ export function Mandate({ vault, chainId, signer, demoAgent, goRequests }: { vau
                 <div className="text-[0.72rem] text-muted-foreground">Expires {new Date(Number(s.expiry) * 1000).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</div>
               </div>
               {!s.revoked && !active && (
-                <Button className="w-full" disabled={!!busy} onClick={() => submit(encode.setSessionLimits(getAddress(s.address), BigInt(Math.floor(now + 24 * 3600)), BigInt(s.cap)), "Renew agent for 24 hours")}>
-                  Renew for 24 hours (needs World ID)
+                <Button className="w-full" disabled={!!busy} onClick={() => submit(encode.setSessionLimits(getAddress(s.address), BigInt(Math.floor(now + 24 * 3600)), renewCap(BigInt(s.cap))), "Renew agent for 24 hours")}>
+                  Renew for 24 hours · cap {money(renewCap(BigInt(s.cap)))} USDT (needs World ID)
                 </Button>
               )}
               {!s.revoked && (
