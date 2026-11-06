@@ -265,6 +265,24 @@ Open **https://permissionless.in** on your phone.
    - **Injected agent** sends the Cornell-style 500 USDT ask. The safety policy blocks it before any World check.
 3. **Freeze all** revokes the agent with your key alone, after which the agent can't pay.
 
+## Use Leash from any AI agent (MCP)
+`apps/mcp` is an MCP server: any MCP-capable assistant (Claude Desktop, Claude Code, Cursor, …) can pay x402 APIs from a Leash vault, and can try to break its limits.
+- **Tools:**
+  - `leash_whoami`, `check_budget`, `list_services`
+  - `buy_service` (pays per call in USDT)
+  - `request_more_budget` / `check_request` (the owner decides with World ID)
+  - `change_my_limits` and `pay_address`: the moves a hacked agent would try
+- **Enforcement:** every refusal comes from the vault contract or facilitator and is returned verbatim, not from a prompt.
+- **Setup:**
+  1. The first run creates a session key in `~/.leash/agent-key.json` (0600). It never holds gas.
+  2. `--print-address` shows the agent's address. The owner adds it in the app: **Limits → Add an agent**, one World ID scan.
+  3. Point the assistant at it, for example:
+     `claude mcp add leash -e LEASH_VAULT=0x… -- node apps/mcp/node_modules/tsx/dist/cli.mjs apps/mcp/src/server.ts`
+- **Live smoke test** (`apps/mcp/scripts/smoke.ts`, a real MCP client over stdio):
+  - bought a USD/INR quote for 0.01 USDT
+  - `pay_address(0x…dEaD)` → blocked `MerchantNotAllowed`
+  - `change_my_limits(500)` → blocked `WrongPqKey`
+
 ## Partner API (e.g. the Break-the-Leash arena)
 - **Hosts:** `https://facilitator.permissionless.in` (x402 facilitator + discovery) and `https://merchant.permissionless.in` (paid endpoints). CORS is open.
 - **`x-api-key` lane:**
@@ -305,7 +323,7 @@ Open **https://permissionless.in** on your phone.
   - A compromised attestor alone still can't loosen any vault (see the two-key split).
 
 ## Dependencies (public, open source)
-viem, @x402/core, @x402/fetch, @x402/hono, OpenZeppelin Contracts 5.4, Foundry/forge-std, **ZKNox ETHFALCON** (MIT, contracts + Python reference signer + C signer), ZKNox NTT (polyntt), Next.js, React, Tailwind, Hono, `node:sqlite` (used instead of better-sqlite3, so there is no native build), vitest, jose, qrcode.react, Emscripten (build-time). UI: shadcn/ui components (MIT, copied into `apps/web/components/ui`), Radix UI, lucide-react, sonner, `cn`, class-variance-authority, tw-animate-css, Geist / Geist Mono fonts. Hedera: @hiero-ledger/sdk, @x402/hedera.
+viem, @x402/core, @x402/fetch, @x402/hono, OpenZeppelin Contracts 5.4, Foundry/forge-std, **ZKNox ETHFALCON** (MIT, contracts + Python reference signer + C signer), ZKNox NTT (polyntt), Next.js, React, Tailwind, Hono, `node:sqlite` (used instead of better-sqlite3, so there is no native build), vitest, jose, qrcode.react, Emscripten (build-time). UI: shadcn/ui components (MIT, copied into `apps/web/components/ui`), Radix UI, lucide-react, sonner, `cn`, class-variance-authority, tw-animate-css, Geist / Geist Mono fonts. Hedera: @hiero-ledger/sdk, @x402/hedera. MCP: @modelcontextprotocol/sdk, zod.
 
 ## AI usage disclosure
 Claude Code (Anthropic) built most of the code from the spec in [`CLAUDE.md`](CLAUDE.md). The spec was drafted at the start of the hackathon; no code was pre-written. Patterns informed by the team's prior work; all code written during ETHGlobal Mumbai.

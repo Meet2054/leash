@@ -1,0 +1,24 @@
+{
+  "name": "@leash/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "MCP server: lets any AI agent (Claude, Cursor, …) pay x402 APIs through a Leash vault — and try to break its limits.",
+  "scripts": {
+    "start": "tsx src/server.ts",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@leash/sdk": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "viem": "^2.57.16",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
