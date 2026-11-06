@@ -71,6 +71,15 @@ flowchart LR
   - The **attestor key**, which vouches that a fresh World check happened for that exact change.
   - The **relayer**, which provides liveness only. It cannot steal funds because every action needs a valid signature.
 - **If a session key leaks or is broken by a quantum computer**, the attacker can only overpay already-allowed merchants, up to the session cap, before expiry. The owner then revokes with a PQ-only tightening change, and the session can also revoke itself gaslessly.
+- **Two-key split for loosening.** Loosening the mandate needs **both** the owner's Falcon key **and** the attestor's World approval:
+  - Stealing the attestor key alone moves nothing: it has no Falcon signature.
+  - Stealing the owner's Falcon key alone can only tighten (revoke, lower limits, remove merchants).
+  - Proven in tests: [`test_trustSplit_*`](contracts/test/LeashVault.t.sol).
+- **How funds can leave a vault (only two ways):**
+  - Through cumulative vouchers the agent's session key signed, within the mandate (allowed merchant, channel lock, caps, expiry).
+  - Through a `WITHDRAW`, which needs both keys.
+
+  Closing a channel only releases its unclaimed lock back to the vault.
 
 ## The mandate
 | Action | Kind | Needs |
@@ -172,6 +181,10 @@ Tests: `pnpm test` (forge 71 tests + vitest).
 - The relayer's fee-to-WBT swap is described, not built.
 - ZKNox's ETHFALCON is experimental and unaudited ("not for production"), and so is this code.
 - Hedera: settles in HBAR until the Circle USDC faucet delivers. Each paid request is a separate settlement, and the mandate is enforced by the facilitator (off-chain).
+- **Relayer and attestor are fixed in the factory** (immutables of the vault implementation), so rotating either key means deploying a new factory.
+  - Existing vaults stay usable.
+  - Merchants can always claim their vouchers themselves, just without the relayer fee.
+  - A compromised attestor alone still can't loosen any vault (see the two-key split).
 
 ## Dependencies (public, open source)
 viem, @x402/core, @x402/fetch, @x402/hono, OpenZeppelin Contracts 5.4, Foundry/forge-std, **ZKNox ETHFALCON** (MIT, contracts + Python reference signer + C signer), ZKNox NTT (polyntt), Next.js, React, Tailwind, Hono, `node:sqlite` (used instead of better-sqlite3, so there is no native build), vitest, jose, qrcode.react, Emscripten (build-time).
