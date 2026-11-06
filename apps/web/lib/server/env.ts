@@ -42,6 +42,13 @@ export const WORLD = {
   requirePop: process.env.WORLD_REQUIRE_POP !== "false",
   /** request essential acr values in the device authorization (comma list) */
   requestAcr: (process.env.WORLD_REQUEST_ACR ?? "").split(",").filter(Boolean),
+  /**
+   * device (RFC 8628, backend polls) | browser (authorization code + PKCE, World redirects to our callback).
+   * The browser flow is what World's OAuth Playground default client completes; it needs a public HTTPS
+   * callback registered in the portal (WORLD_REDIRECT_URI, e.g. https://permissionless.in/api/world/callback).
+   */
+  flow: (process.env.WORLD_FLOW ?? "device") as "device" | "browser",
+  redirectUri: process.env.WORLD_REDIRECT_URI ?? `${APP_URL}/api/world/callback`,
   mockIssuer: `${APP_URL}/api/world/mock`,
   /** subject string the mock issuer authenticates (match the CLI bootstrap vault by default) */
   mockSubject: process.env.WORLD_MOCK_SUBJECT ?? "cli-bootstrap:owner-1",

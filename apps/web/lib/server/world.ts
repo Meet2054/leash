@@ -94,6 +94,57 @@ export async function pollDeviceToken(deviceCode: string): Promise<PollResult> {
   }
 }
 
+// ------------------------------------------------------------------------------------------- browser flow (code + PKCE)
+
+type Discovery = { authorization_endpoint: string; token_endpoint: string };
+let discoveryP: Promise<Discovery> | undefined;
+const discovery = () =>
+  (discoveryP ??= fetch(`${WORLD.issuer}/.well-known/openid-configuration`)
+    .then((r) => (r.ok ? (r.json() as Promise<Discovery>) : Promise.reject(new Error(`World discovery ${r.status}`))))
+    .catch((e) => {
+      discoveryP = undefined;
+      throw e;
+    }));
+
+const b64url = (b: Uint8Array) => Buffer.from(b).toString("base64url");
+
+/** Authorization URL for one attempt: state = attempt id, fresh login (max_age=0), PKCE S256, nonce. */
+export async function startBrowserAuth(attemptId: string, pinnedSub?: string): Promise<{ url: string; verifier: string; nonce: string }> {
+  const verifier = b64url(crypto.getRandomValues(new Uint8Array(32)));
+  const challenge = b64url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))));
+  const nonce = b64url(crypto.getRandomValues(new Uint8Array(16)));
+  const claims: Record<string, unknown> = {};
+  if (WORLD.requestAcr.length) claims.acr = { essential: true, values: WORLD.requestAcr };
+  if (pinnedSub) claims.sub = { value: pinnedSub };
+  const u = new URL((await discovery()).authorization_endpoint);
+  u.search = new URLSearchParams({
+    response_type: "code",
+    client_id: WORLD.clientId,
+    redirect_uri: WORLD.redirectUri,
+    scope: "openid",
+    state: attemptId,
+    nonce,
+    code_challenge: challenge,
+    code_challenge_method: "S256",
+    max_age: "0",
+    ...(Object.keys(claims).length ? { claims: JSON.stringify({ id_token: claims }) } : {}),
+  }).toString();
+  return { url: u.toString(), verifier, nonce };
+}
+
+/** Exchange the callback's code for an ID token (server to server, client_secret_basic + PKCE verifier). */
+export async function exchangeCode(code: string, verifier: string): Promise<string> {
+  const r = await fetch((await discovery()).token_endpoint, {
+    method: "POST",
+    headers: { authorization: basicAuth(), "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: WORLD.redirectUri, code_verifier: verifier }),
+  });
+  const j = (await r.json().catch(() => ({}))) as Record<string, string>;
+  console.log(`[world] code exchange → ${r.status} ${j.id_token ? "id_token received" : `${j.error ?? "?"} ${j.error_description ?? ""}`}`);
+  if (!r.ok || !j.id_token) throw new Error(`World token exchange failed: ${j.error ?? r.status} ${j.error_description ?? ""}`.trim());
+  return j.id_token;
+}
+
 const remoteJwks = () => createRemoteJWKSet(new URL(`${WORLD.issuer}/.well-known/jwks.json`));
 
 // ------------------------------------------------------------------------------------------- MOCKED issuer
@@ -132,7 +183,7 @@ export async function mintMockIdToken(attemptId: string): Promise<string> {
  * Validate an ID token for one attempt. Never trust a client-supplied result: the token comes straight
  * from the IdP's token endpoint (or the mock issuer) to this server.
  */
-export async function validateIdToken(idToken: string, attempt: { started_at: number }, mocked: boolean): Promise<ValidatedIdentity> {
+export async function validateIdToken(idToken: string, attempt: { started_at: number; oidc_nonce?: string | null }, mocked: boolean): Promise<ValidatedIdentity> {
   const issuer = mocked ? WORLD.mockIssuer : WORLD.issuer;
   const { payload } = await jwtVerify(idToken, mocked ? createLocalJWKSet(await mockJwks()) : remoteJwks(), {
     issuer,
@@ -140,8 +191,10 @@ export async function validateIdToken(idToken: string, attempt: { started_at: nu
     algorithms: ["RS256"],
     clockTolerance: 5,
   });
-  const p = payload as JWTPayload & { auth_time?: number; acr?: string; amr?: string[] };
+  const p = payload as JWTPayload & { auth_time?: number; acr?: string; amr?: string[]; nonce?: string };
   if (!p.sub) throw new Error("ID token has no sub");
+  // browser flow: the token must carry the nonce we generated for this attempt
+  if (attempt.oidc_nonce && p.nonce !== attempt.oidc_nonce) throw new Error("ID token nonce does not match this attempt");
   if (typeof p.auth_time !== "number") throw new Error("ID token has no auth_time");
   // freshness: the human authenticated during THIS attempt, not earlier
   if (p.auth_time < attempt.started_at - 5) throw new Error(`stale authentication (auth_time ${p.auth_time} < attempt start ${attempt.started_at})`);

@@ -53,6 +53,8 @@ export type AttemptRow = {
   consumed: number;
   effects_json: string | null; // F8.1 decoded loosening effects (server-side decoding)
   cooldown_until: number | null; // F8.1 R3: World passed, attestor signs only after this time
+  pkce_verifier: string | null; // browser flow: server-only PKCE verifier, cleared on first callback
+  oidc_nonce: string | null; // browser flow: nonce the ID token must carry
 };
 
 const SCHEMA = `
@@ -67,7 +69,7 @@ CREATE TABLE IF NOT EXISTS attempts (
   device_code TEXT, user_code TEXT, verification_uri TEXT, verification_uri_complete TEXT, mode TEXT NOT NULL,
   status TEXT NOT NULL, status_reason TEXT, sub TEXT, subject_hash TEXT, auth_time INTEGER, acr TEXT, amr TEXT,
   jti TEXT UNIQUE, wa_json TEXT, attestor_sig TEXT, consumed INTEGER NOT NULL DEFAULT 0,
-  effects_json TEXT, cooldown_until INTEGER
+  effects_json TEXT, cooldown_until INTEGER, pkce_verifier TEXT, oidc_nonce TEXT
 );
 CREATE TABLE IF NOT EXISTS loosenings (
   id INTEGER PRIMARY KEY AUTOINCREMENT, vault TEXT NOT NULL, attempt_id TEXT NOT NULL, at INTEGER NOT NULL,
@@ -76,7 +78,12 @@ CREATE TABLE IF NOT EXISTS loosenings (
 CREATE INDEX IF NOT EXISTS loosenings_vault_at ON loosenings (vault, at);
 `;
 // columns added after the first deploy (CREATE TABLE IF NOT EXISTS doesn't add them to an existing DB)
-const MIGRATIONS = ["ALTER TABLE attempts ADD COLUMN effects_json TEXT", "ALTER TABLE attempts ADD COLUMN cooldown_until INTEGER"];
+const MIGRATIONS = [
+  "ALTER TABLE attempts ADD COLUMN effects_json TEXT",
+  "ALTER TABLE attempts ADD COLUMN cooldown_until INTEGER",
+  "ALTER TABLE attempts ADD COLUMN pkce_verifier TEXT",
+  "ALTER TABLE attempts ADD COLUMN oidc_nonce TEXT",
+];
 
 const g = globalThis as unknown as { __leashDb?: DatabaseSync };
 export function db(): DatabaseSync {
@@ -136,6 +143,14 @@ export function setAttempt(id: string, patch: Partial<Omit<AttemptRow, "id">>) {
   db()
     .prepare(`UPDATE attempts SET ${keys.map((k) => `${k} = ?`).join(", ")} WHERE id = ?`)
     .run(...keys.map((k) => (patch[k] ?? null) as string | number | null), id);
+}
+
+/** Browser flow: take the PKCE verifier exactly once (a replayed callback gets null). */
+export function takePkceVerifier(id: string): string | null {
+  const row = db().prepare("SELECT pkce_verifier FROM attempts WHERE id = ? AND status = 'PENDING'").get(id) as { pkce_verifier: string | null } | undefined;
+  if (!row?.pkce_verifier) return null;
+  const r = db().prepare("UPDATE attempts SET pkce_verifier = NULL WHERE id = ? AND pkce_verifier = ?").run(id, row.pkce_verifier);
+  return Number(r.changes) === 1 ? row.pkce_verifier : null;
 }
 
 /** Atomically mark an approved attempt as used. Returns false if it was already consumed. */

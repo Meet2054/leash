@@ -13,8 +13,8 @@ import {
   type WorldApprovalMsg,
 } from "@leash/sdk";
 import { CHAIN_ID, FACILITATOR_URL, RPC_URL, WORLD, attestorKey, deployment, APP_URL } from "./env";
-import { db, getApproval, getAttempt, insertAttempt, loosenings, newId, now, recordLoosenings, setApproval, setAttempt, type AttemptRow } from "./db";
-import { mintMockIdToken, pollDeviceToken, startDeviceAuth, validateIdToken, type ValidatedIdentity } from "./world";
+import { db, getApproval, getAttempt, insertAttempt, loosenings, newId, now, recordLoosenings, setApproval, setAttempt, takePkceVerifier, type AttemptRow } from "./db";
+import { exchangeCode, mintMockIdToken, pollDeviceToken, startBrowserAuth, startDeviceAuth, validateIdToken, type ValidatedIdentity } from "./world";
 import { serverDecode } from "./decode";
 import { effectsOf, evaluate, policyFromEnv, recordsOf, type CurrentState, type Effect, type LooseningRecord, type PolicyDecision } from "./policy";
 
@@ -103,6 +103,19 @@ async function beginWorld(id: string, pinnedSub?: string) {
       interval_s: 1,
     };
   }
+  if (WORLD.flow === "browser") {
+    // authorization code + PKCE: World redirects the owner's browser to WORLD.redirectUri with state = id
+    const b = await startBrowserAuth(id, pinnedSub);
+    return {
+      device_code: null,
+      user_code: "WEB-" + id.slice(0, 4).toUpperCase(),
+      verification_uri: b.url,
+      verification_uri_complete: b.url,
+      expires_at: now() + 10 * 60,
+      interval_s: 5,
+      browser: { verifier: b.verifier, nonce: b.nonce },
+    };
+  }
   const d = await startDeviceAuth(pinnedSub);
   return {
     device_code: d.deviceCode,
@@ -151,7 +164,7 @@ export async function startApprovalAttempt(approvalId: string): Promise<StartedA
     status: "PENDING",
     ...w,
   });
-  setAttempt(id, { effects_json: json(effects) });
+  setAttempt(id, { effects_json: json(effects), ...browserFields(w) });
   setApproval(a.id, { status: "APPROVING", attempt_id: id });
   // F8.1: every pending loosening goes to the tamper-evident log (HCS) before anyone approves it
   await audit("LooseningPending", vault, { approvalId: a.id, attemptId: id, changeHash, nonce, effects, cooldownSec: decision.cooldownSec, notes: decision.reasons });
@@ -185,7 +198,33 @@ export async function startCreateAttempt(input: { pqPubKeyHash: Hex; initialMand
     status: "PENDING",
     ...w,
   });
+  setAttempt(id, browserFields(w));
   return { attemptId: id, mode: WORLD.mode, userCode: w.user_code, verificationUri: w.verification_uri, verificationUriComplete: w.verification_uri_complete, expiresAt: w.expires_at };
+}
+
+const browserFields = (w: { browser?: { verifier: string; nonce: string } }) => (w.browser ? { pkce_verifier: w.browser.verifier, oidc_nonce: w.browser.nonce } : {});
+
+/**
+ * Browser flow: World redirected the owner's browser to our callback. `state` names the attempt; the code
+ * is exchanged server-side with the attempt's PKCE verifier (single use), then the ID token goes through
+ * the same validation + policy + signing path as the device flow.
+ */
+export async function completeFromCallback(q: { state?: string | null; code?: string | null; error?: string | null; errorDescription?: string | null }): Promise<AttemptRow | { unknown: true }> {
+  const at = q.state ? getAttempt(q.state) : undefined;
+  if (!at || at.mode !== "world") return { unknown: true };
+  if (at.status !== "PENDING") return at;
+  if (now() > at.expires_at) return fail(at, "EXPIRED", "the World check expired before it was completed");
+  if (q.error) return fail(at, q.error === "access_denied" ? "DENIED" : "ERROR", `${q.error}${q.errorDescription ? `: ${q.errorDescription}` : ""}`);
+  if (!q.code) return fail(at, "ERROR", "callback without code");
+  const verifier = takePkceVerifier(at.id);
+  if (!verifier) return getAttempt(at.id)!; // replayed callback: the first one already used the verifier
+  let idToken: string;
+  try {
+    idToken = await exchangeCode(q.code, verifier);
+  } catch (e) {
+    return fail(at, "ERROR", e instanceof Error ? e.message : String(e));
+  }
+  return complete(getAttempt(at.id)!, idToken, false);
 }
 
 // ------------------------------------------------------------------------------------------- advance
