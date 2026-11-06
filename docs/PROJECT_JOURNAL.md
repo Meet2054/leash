@@ -66,6 +66,7 @@ Track: **From Scratch** (all code written during the event; AI use disclosed; MI
 | 11-06 00:56 | Whitechain feedback, World debrief, demo script, this journal | `8d0e10a`+ |
 | 11-06 ~01:40–02:00 | Hedera: human created portal accounts (rotated once); bootstrap created the HCS topic + agent/merchant; Circle USDC faucet never delivered (first went to Arc, then the faucet stalled) | `caa3de8`, `635bedc` |
 | 11-06 10:54 | Deadline confirmed: submission **2026-11-07 04:54 IST**, build cutoff **22:54 IST** (last 6 h = pitch) | `76af000` |
+| 11-06 ~11:15 | **F2 live:** circuit breaker; Scenario D tripped after 271 ms (20 workers); HCS #11 `CircuitTripped`; breaker reset after the test | `4fd5671` |
 | 11-06 ~11:30 | **F1 live:** PQ Ledger (4 PQ-verified txs) + Q-Day drill (rotation `0x1c4f…a784`, old key → WrongPqKey, new-key tightening `0x8543…113e`; World approval MOCKED) | `61b441f` |
 | 11-06 ~09:40 | VISION.md added (strict P0→P3); World sandbox docs re-read: attestor matches "Human checkpoints"; now pins the linked `sub`; developer MCP path documented; no Agent Pass workshop exists (only IDKit's) | `426d004`+ |
 | 11-06 09:10–09:30 | Review round: deadline placeholder, LEASH_STATUS regenerated, data math leads with 584×, gitleaks clean, deploy kit (Caddy + pm2), trust-split tests (forge 75/75), reproducible deploy record (bytecode exact match) | `b17cd4d`…`e396b1c` |

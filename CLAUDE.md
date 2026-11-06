@@ -355,6 +355,7 @@ Rules: never claim something works without a link, a test result or command outp
   - The CLI agent session expires 2026-11-07 00:08 IST, after the build cutoff, so it doesn't block anything.
 
 ### Current state
+- **2026-11-06 ~11:20 IST:** F2 done (breaker, Scenario D 271 ms, Freeze all). Set ADMIN_TOKEN on the server. Next: F3 reorg-safe test, F4 flight recorder; P0 World waits on credentials.
 - **2026-11-06 11:35 IST:** F1 done (PQ Ledger + Q-Day drill live; rotation tx 0x1c4fc9b3…a784, new-key tx 0x8543b2c0…113e; owner CLI key rotated, so keys/owner.json is the NEW key and the retired one is keys/owner-retired-*.json). Next: F2 circuit breaker while the human gets World credentials.
 - **2026-11-06 09:30 IST (after review round):** items 1 (deadline, awaiting the date), 2–6 done; 7 waits on WORLD_CLIENT_ID/SECRET; 8 (fresh demo vault) after real World + hosting, with a fallback before the CLI session expires 2026-11-07 00:08 IST. forge 75/75, vitest 29/29, gitleaks clean, deploy kit in `deploy/`.
 - Milestone: **M1 done** (forge green). **M2 gate PASS on deployed contracts** (2026-11-06): verified EthFalconVerifier on 1874 returns true for off-chain Falcon sigs over Leash digests (`contracts/test/vectors/falcon_leash.json`), false for wrong digest, ~1.58M gas. **M3 in progress**: sdk + relayer + facilitator + merchant done and green on anvil e2e (30 paid calls → 3 claims); next = run it on Whitechain with real USDT.

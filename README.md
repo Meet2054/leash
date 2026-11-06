@@ -100,6 +100,22 @@ There is **no ECDSA owner path anywhere**: the only root authority is the post-q
   - The vault balance (17.171374 USDT) was unchanged throughout. The forge test `test_rotatePqKey_oldKeyStopsWorking` covers the same property.
 - **Crypto-agility:** the verifier address is vault config. A loosening `SET_VERIFIER` change (Falcon signature plus World approval) can move a vault to ML-DSA or a future precompile **without migrating funds**.
 
+## Automatic containment: the circuit breaker
+Tightening is safe to automate, so Leash does it automatically.
+- **Triggers:** the facilitator watches every vault for swarm behaviour:
+  - payment velocity per session
+  - channel fan-out
+  - many parallel sessions
+  - repeated mandate-change attempts
+- **On a trip:**
+  - every voucher and channel open from that vault is refused (`leash_circuit_open`)
+  - the incident is written to the HCS audit log
+  - the owner gets a one-tap **Freeze all**: a batch `REVOKE_SESSION`, which needs only the Falcon key, no World check
+- **Never blocked:** owner changes. Anything may tighten; only loosening needs a human.
+- **Live (Scenario D, `pnpm agent d`):** 20 self-cloned copies of a compromised agent were cut off **271 ms** after the burst began (151 requests from one session in 10 s). HCS [topic 0.0.11329753](https://hashscan.io/testnet/topic/0.0.11329753), message #11 `CircuitTripped`.
+- The breaker is enforced by the facilitator (off-chain), with HCS as the audit anchor. The onchain caps still bound the worst case if the facilitator were bypassed.
+- Code: [`packages/facilitator/src/breaker.ts`](packages/facilitator/src/breaker.ts); 7 vitest cases.
+
 ## Data math
 Workload: 10,000 agents × 1 paid request per minute = 14.4M requests/day. Counting signature bytes only:
 

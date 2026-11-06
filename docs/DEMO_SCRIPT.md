@@ -75,6 +75,14 @@ pnpm agent q --check  # the retired key is refused (WrongPqKey), simulated
 ```
 > "This is a post-quantum key rotation, live onchain. The old key is 'compromised', so the owner approves with World ID and signs with the old key one last time. Same vault, same money, new root of trust, and the old key is now refused."
 
+### + Swarm burst (≤ 20 s)
+```bash
+pnpm agent d --workers 20
+```
+> "A swarm of 20 copies of a compromised agent bursts. Leash cuts the whole vault off in a fraction of a second (271 ms in our run) and asks the owner to freeze it. No human was needed to *stop* it, only to *loosen*."
+
+Show the breaker banner in the owner app → tap **Freeze all** (Falcon signature only) → the HCS message on HashScan.
+
 ### + PQ Ledger (≤ 15 s; drop from the Whitechain cut if over time)
 Owner app → **PQ** tab:
 > "Every post-quantum signature Leash has verified onchain: about 1.5M gas each, so we only pay it on rare owner actions, never on the 300 payments."
