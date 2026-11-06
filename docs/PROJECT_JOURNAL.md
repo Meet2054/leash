@@ -66,6 +66,7 @@ Track: **From Scratch** (all code written during the event; AI use disclosed; MI
 | 11-06 00:56 | Whitechain feedback, World debrief, demo script, this journal | `8d0e10a`+ |
 | 11-06 ~01:40–02:00 | Hedera: human created portal accounts (rotated once); bootstrap created the HCS topic + agent/merchant; Circle USDC faucet never delivered (first went to Arc, then the faucet stalled) | `caa3de8`, `635bedc` |
 | 11-06 13:28–13:44 | **Real World IdP (sandbox):** credentials work; first attempt → sandbox app "Failed to share" (identity likely still issuing) → IdP `access_denied` → DENIED, nothing signed, HCS #23. Real denied path captured | this commit |
+| 11-06 13:47 | All-protocol test pass: forge 75/75, vitest 42/42, web prod build ✓; Whitechain 6 calls → claim `0x6242…c776`; Hedera 2 settled + 1 refused; verify-log 4/4. Only the real World approval is open (identity issuing) | this commit |
 | 11-06 10:54 | Deadline confirmed: submission **2026-11-07 04:54 IST**, build cutoff **22:54 IST** (last 6 h = pitch) | `76af000` |
 | 11-06 11:15 | **F4 live:** flight recorder; 20 paid calls → 3 claims → 3 FlightRecord roots on HCS; `pnpm verify-log` 3/3 match | this commit |
 | 11-06 11:12 | **F3:** reorg-safe settlement (claim reconciliation + nonce resync), anvil rollback test green | this commit |

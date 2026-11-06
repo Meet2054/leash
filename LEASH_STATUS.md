@@ -1,4 +1,4 @@
-# LEASH_STATUS — 2026-11-06T11:12+05:30 IST — milestone M8 (in progress: docs + deploy; M7 done with HBAR; World real-IdP run pending)
+# LEASH_STATUS — 2026-11-06T13:47+05:30 IST — milestone M8 (all-protocol test pass green except the real World approval; waiting on sandbox identity issuance)
 
 ## 1. Summary (3 lines max)
 Whitechain is live and verified: 300 x402 payments settled in 10 USDT claims, and Falcon-gated vault creation and cap raises are onchain. Hedera is live: 3 x402 `exact` payments settled through our facilitator (fee payer), one refusal above the approval threshold, and an HCS audit log. Settlement there is in **HBAR**, because the Circle USDC faucet stalled.
@@ -98,6 +98,13 @@ caa3de8 feat(hedera): x402 exact on hedera:testnet via our facilitator + HCS aud
 44bf22f docs: first live USDT claims on Whitechain — 300 x402 payments in 10 claims
 bdc81d8 fix(facilitator,sdk): one rate-limit token per paid request; resync client state on 402
 ```
+
+## 11b. All-protocol test pass (13:47 IST)
+- forge 75/75 · vitest 42/42 · typecheck all packages · web production build ✓
+- Whitechain live: 6 paid calls → claim https://explorer.testnet.whitechain.io/tx/0x62429de55439b83f1bf0d094a632218dbadef40af1a904b57e68024f9f41c776 (total 339 vouchers → 15 claims)
+- Hedera live: 2 payments settled (e.g. https://hashscan.io/testnet/transaction/0.0.11329302@1793952992.606850730), 6 HBAR refused (human approval required)
+- F1 PQ Ledger 4 entries · F2 breaker closed · F4 verify-log 4/4 match HCS
+- World: credentials ✓, real IdP denied path ✓ (attempt 577a3417, HCS #23); **real approval pending** the sandbox identity issuance (~1 h after Manual verify)
 
 ## 12. Features F1–F7
 | Feature | Status | Evidence | Tests |
