@@ -77,6 +77,8 @@ export async function pollDeviceToken(deviceCode: string): Promise<PollResult> {
   if (r.status === 503) return { state: "error", reason: "World IdP temporarily unavailable" };
   if (r.status === 429) return { state: "error", reason: "rate limited by World IdP" };
   const j = (await r.json().catch(() => ({}))) as Record<string, string>;
+  // never log tokens: only the status and the OAuth error code
+  if (process.env.WORLD_DEBUG !== "0") console.log(`[world] device poll → ${r.status} ${j.id_token ? "id_token received" : `${j.error ?? "?"} ${j.error_description ?? ""}`}`);
   if (r.ok && j.id_token) return { state: "approved", idToken: j.id_token };
   switch (j.error) {
     case "authorization_pending":
