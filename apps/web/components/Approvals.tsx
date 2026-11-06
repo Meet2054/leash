@@ -1,13 +1,13 @@
 "use client";
 import { useState } from "react";
-import { Bot, Inbox, UserRound } from "lucide-react";
+import { ArrowUpRight, Check, Clock, Globe, Hourglass, Inbox, ShieldAlert, TrendingUp, X } from "lucide-react";
 import { toast } from "sonner";
-import { api, friendlyPolicy, short, usePoll } from "@/lib/client/api";
+import { api, explorerTx, friendlyPolicy, short, usePoll } from "@/lib/client/api";
 import type { OwnerSigner } from "@/lib/client/signer";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ApprovalRunner } from "./ApprovalRunner";
-import { Empty, Pill, TxLink } from "./leash/kit";
-import { Card, CardContent } from "@/components/ui/card";
+import { AlertCard, Empty, PageTitle } from "./leash/kit";
 
 type Approval = {
   id: string;
@@ -22,81 +22,175 @@ type Approval = {
   txHash: string | null;
 };
 
-const tone: Record<string, "warn" | "neutral" | "ok" | "bad"> = { PENDING: "warn", APPROVING: "neutral", APPROVED: "ok", DENIED: "bad", EXPIRED: "bad", FAILED: "bad" };
-const label: Record<string, string> = { PENDING: "Needs you", APPROVING: "In progress", APPROVED: "Approved", DENIED: "Denied", EXPIRED: "Expired", FAILED: "Failed" };
+const hhmm = (s: number) => new Date(s * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const dayTime = (d: Date) => `${d.toLocaleDateString([], { day: "numeric", month: "short" })}, ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+const trim = (s: string, n = 160) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
-/** Make the server's op description friendlier ("Set session 0x…: cap 8 USDT, expires …"). */
-const friendly = (d: string) =>
-  d
-    .replace(/^Set session (0x[0-9a-fA-F]+): cap ([\d.]+ USDT), expires (.*)/, (_m, _s, cap, exp) => `Set the agent's cap to ${cap}, valid until ${new Date(exp).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}`)
-    .replace(/^Add session (0x[0-9a-fA-F]+): cap ([\d.]+ USDT).*/, "Add an agent with a $2 cap")
-    .replace(/^Withdraw ([\d.]+ USDT) to (0x[0-9a-fA-F]{6}).*/, "Withdraw $1 to $2…")
-    .replace(/^Allow merchant (0x[0-9a-fA-F]{6})[0-9a-fA-F]*: daily cap ([\d.]+ USDT).*/, "Allow merchant $1… ($2 per day)");
+/** Short card title from the server's op description ("Set session 0x…: cap 8 USDT, expires …"). */
+function titleOf(d: string): string {
+  let m = d.match(/^Set session (0x[0-9a-fA-F]+): cap ([\d.]+) USDT/);
+  if (m) return `Raise cap to ${Number(m[2])} USDT`;
+  m = d.match(/^Add session (0x[0-9a-fA-F]+): cap ([\d.]+) USDT/);
+  if (m) return `Add an agent (${Number(m[2])} USDT cap)`;
+  m = d.match(/^Withdraw ([\d.]+) USDT to (0x[0-9a-fA-F]{6})/);
+  if (m) return `Withdraw ${Number(m[1])} USDT`;
+  m = d.match(/^Allow merchant (0x[0-9a-fA-F]{6})[0-9a-fA-F]*/);
+  if (m) return `Allow merchant ${m[1]}…`;
+  return d.replace(/^Batch: /, "");
+}
+const untilOf = (d: string): Date | null => {
+  const iso = d.match(/expires ([0-9T:.\-Z]+)/)?.[1];
+  const t = iso ? new Date(iso) : null;
+  return t && !Number.isNaN(t.getTime()) ? t : null;
+};
+const isPolicyBlock = (a: Approval) => a.status === "DENIED" && /attestor policy|safety policy/i.test(a.statusReason ?? "");
+
+type Row = { kind: "one"; a: Approval } | { kind: "blocked"; items: Approval[] };
 
 export function Approvals({ vault, chainId, signer }: { vault: string; chainId: number; signer: OwnerSigner | null }) {
   const { data, refresh } = usePoll<Approval[]>(`/api/approvals?vault=${vault}`, 2500);
   const [open, setOpen] = useState<string>();
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
   const deny = async (id: string) => {
     await api(`/api/approvals/${id}/deny`, {});
     toast("Denied. Nothing changed, and the agent stays capped.");
     setOpen(undefined);
     refresh();
   };
-  const list = data ?? [];
-  const pending = list.filter((a) => a.status === "PENDING" || a.status === "APPROVING");
+  const hide = (ids: string[]) => setHidden((h) => new Set([...h, ...ids]));
+
+  const list = (data ?? []).filter((a) => !hidden.has(a.id));
+  const live = list.filter((a) => a.status === "PENDING" || a.status === "APPROVING");
   const past = list.filter((a) => !(a.status === "PENDING" || a.status === "APPROVING"));
+  // policy blocks of the same ask are one story ("2 attempts · 20:26, 20:27")
+  const rows: Row[] = live.map((a) => ({ kind: "one" as const, a }));
+  const groups = new Map<string, Approval[]>();
+  for (const a of past) {
+    if (isPolicyBlock(a)) {
+      const k = a.description;
+      if (!groups.has(k)) (groups.set(k, []), rows.push({ kind: "blocked", items: groups.get(k)! }));
+      groups.get(k)!.push(a);
+    } else rows.push({ kind: "one", a });
+  }
+
   return (
-    <div className="space-y-3">
-      <div className="px-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Requests</h1>
-        <p className="mt-1 text-[0.85rem] text-muted-foreground">Your agent can ask for more room. Only you can say yes, with World ID and your own key. Saying no changes nothing.</p>
-      </div>
-      {list.length === 0 && <Empty icon={<Inbox className="size-5" />} title="No requests yet" hint="When your agent asks for a higher limit, it shows up here." />}
-      {[...pending, ...past].map((a) => (
-        <Card key={a.id} className={a.status === "PENDING" || a.status === "APPROVING" ? "" : "opacity-80"}>
-          <CardContent className="space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex min-w-0 items-start gap-3">
-                <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted">{a.source === "agent" ? <Bot className="size-5" /> : <UserRound className="size-5" />}</div>
-                <div className="min-w-0">
-                  <div className="text-[0.95rem] font-semibold leading-snug tracking-tight">{friendly(a.description)}</div>
-                  <div className="mt-0.5 text-[0.75rem] text-muted-foreground">
-                    {a.source === "agent" ? <>Asked by your agent {short(a.session)}</> : "Your own edit"} · {new Date(a.createdAt * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </div>
-                </div>
-              </div>
-              <Pill tone={tone[a.status] ?? "neutral"}>{label[a.status] ?? a.status}</Pill>
-            </div>
-            {a.reason && (
-              <div className="well p-3 text-[0.82rem] leading-relaxed">
-                <span className="text-muted-foreground">Reason given: </span>&ldquo;{a.reason}&rdquo;
-              </div>
-            )}
-            {a.statusReason && a.status !== "PENDING" && open !== a.id && <div className="text-[0.78rem] leading-relaxed text-muted-foreground">{friendlyPolicy(a.statusReason)}</div>}
-            {a.txHash && <TxLink hash={a.txHash} />}
-            {a.status === "PENDING" && open !== a.id && (
-              <div className="grid grid-cols-2 gap-2">
-                <Button variant="secondary" size="lg" onClick={() => deny(a.id)}>
-                  Deny
-                </Button>
-                <Button size="lg" onClick={() => setOpen(a.id)}>
-                  Review
-                </Button>
-              </div>
-            )}
-            {open === a.id && (
-              <div className="space-y-2">
-                <ApprovalRunner approvalId={a.id} vault={vault} chainId={chainId} signer={signer} onDone={refresh} />
-                {(a.status === "PENDING" || a.status === "APPROVING") && (
-                  <Button variant="ghost" className="w-full text-muted-foreground" onClick={() => deny(a.id)}>
+    <div className="space-y-3.5">
+      <PageTitle title="Requests" subtitle="Your agent can ask for more room. Only you can say yes, with World ID and your own key. Saying no changes nothing." />
+      {data === undefined && <Skeleton className="h-[256px] rounded-[24px]" />}
+      {data !== undefined && list.length === 0 && <Empty icon={<Inbox />} title="No requests yet" hint="When your agent asks for a higher limit, it shows up here." />}
+      {rows.map((r, idx) => {
+        const stacked = idx < rows.length - 1;
+        if (r.kind === "blocked") {
+          const first = r.items[r.items.length - 1];
+          const times = r.items
+            .map((a) => a.createdAt)
+            .sort((x, y) => x - y)
+            .map(hhmm);
+          return (
+            <AlertCard
+              key={`b-${first.id}`}
+              hue="red"
+              stacked={stacked}
+              icon={<ShieldAlert />}
+              title="Blocked: possible prompt injection"
+              body={
+                <>
+                  Your agent asked: {titleOf(first.description).replace(/^Raise/, "raise").replace(/^Add/, "add").replace(/^Withdraw/, "withdraw").replace(/^Allow/, "allow")}
+                  {first.reason ? <>, saying &ldquo;{trim(first.reason, 120)}&rdquo;</> : null}. {friendlyPolicy(first.statusReason ?? "").replace(/^Blocked by the safety policy: /, "The safety policy says ")}
+                </>
+              }
+              meta={`${r.items.length} attempt${r.items.length > 1 ? "s" : ""} · ${times.join(", ")}`}
+              metaIcon={<Clock />}
+              onDismiss={() => hide(r.items.map((a) => a.id))}
+            />
+          );
+        }
+        const a = r.a;
+        const until = untilOf(a.description);
+        const who = a.source === "agent" ? `Asked by your agent ${short(a.session)}.` : "Your own edit.";
+        const body = (
+          <>
+            {a.reason ? <>&ldquo;{trim(a.reason)}&rdquo; </> : null}
+            {who}
+          </>
+        );
+        if (a.status === "PENDING" || a.status === "APPROVING")
+          return (
+            <AlertCard
+              key={a.id}
+              hue="gold"
+              stacked={stacked}
+              icon={<TrendingUp />}
+              title={titleOf(a.description)}
+              body={body}
+              meta={`${until ? `Until ${dayTime(until)} · ` : ""}asked ${hhmm(a.createdAt)}`}
+              metaIcon={<Clock />}
+              actions={
+                open === a.id ? undefined : (
+                  <>
+                    <Button variant="secondary" onClick={() => deny(a.id)}>
+                      Deny
+                    </Button>
+                    <Button variant="green" onClick={() => setOpen(a.id)}>
+                      <Globe /> Approve
+                    </Button>
+                  </>
+                )
+              }
+            >
+              {open === a.id && (
+                <div className="space-y-2">
+                  <ApprovalRunner approvalId={a.id} vault={vault} chainId={chainId} signer={signer} onDone={refresh} autoStart />
+                  <Button variant="ghost" className="w-full text-body" onClick={() => deny(a.id)}>
                     Deny instead
                   </Button>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      ))}
+                </div>
+              )}
+            </AlertCard>
+          );
+        if (a.status === "APPROVED")
+          return (
+            <AlertCard
+              key={a.id}
+              hue="green"
+              stacked={stacked}
+              icon={<Check />}
+              title={titleOf(a.description).replace(/^Raise cap to/, "Cap raised to").replace(/^Add an agent/, "Agent added").replace(/^Withdraw/, "Withdrew").replace(/^Allow merchant/, "Merchant allowed")}
+              body={
+                <>
+                  {a.reason ? <>&ldquo;{trim(a.reason)}&rdquo; </> : null}Approved with World ID and your owner key.
+                </>
+              }
+              meta={
+                a.txHash ? (
+                  <a href={explorerTx(a.txHash)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:underline">
+                    Approved {hhmm(a.createdAt)} · view tx <ArrowUpRight className="size-4" />
+                  </a>
+                ) : (
+                  `Approved ${hhmm(a.createdAt)}`
+                )
+              }
+              metaIcon={<Check />}
+              onDismiss={() => hide([a.id])}
+            />
+          );
+        // denied by you, expired, failed: nothing happened
+        const expired = a.status === "EXPIRED";
+        return (
+          <AlertCard
+            key={a.id}
+            hue={expired ? "gold" : "red"}
+            muted
+            stacked={stacked}
+            icon={expired ? <Hourglass /> : <X />}
+            title={`${expired ? "Expired" : a.status === "FAILED" ? "Didn't go through" : "Denied"}: ${titleOf(a.description).replace(/^\w/, (c) => c.toLowerCase())}`}
+            body={a.statusReason ? friendlyPolicy(a.statusReason) : "Nothing changed; the agent stays capped."}
+            meta={`${expired ? "Expired" : a.status === "FAILED" ? "Failed" : "Denied"} · asked ${hhmm(a.createdAt)}`}
+            metaIcon={<Clock />}
+            onDismiss={() => hide([a.id])}
+          />
+        );
+      })}
     </div>
   );
 }

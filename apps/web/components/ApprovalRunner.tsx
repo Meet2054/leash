@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getAddress, type Hex } from "viem";
-import { CheckCircle2, Loader2, ScanFace, XCircle } from "lucide-react";
+import { CheckCircle2, Globe, Loader2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { canonicalChange, mandateChangeDigest } from "@leash/sdk";
 import { api, friendlyPolicy } from "@/lib/client/api";
@@ -21,19 +21,26 @@ type Step = "idle" | "world" | "signing" | "submitting" | "done" | "failed";
  * shown side by side (F8.2; mismatch = block), 1) fresh World ID check bound to this change → attestor signs
  * WorldApproval server-side, 2) the owner's Falcon key signs the change (digest recomputed here, not
  * trusted, and byte-identical to what was reviewed), 3) relayed.
+ * `autoStart`: begin right away (the Approve tap that mounted this is the user activation the passkey needs).
  */
-export function ApprovalRunner({ approvalId, vault, chainId, signer, onDone }: { approvalId: string; vault: string; chainId: number; signer: OwnerSigner | null; onDone?: () => void }) {
+export function ApprovalRunner({ approvalId, vault, chainId, signer, onDone, autoStart }: { approvalId: string; vault: string; chainId: number; signer: OwnerSigner | null; onDone?: () => void; autoStart?: boolean }) {
   const [step, setStep] = useState<Step>("idle");
   const [attemptId, setAttemptId] = useState<string>();
   const [msg, setMsg] = useState<string>();
   const [tx, setTx] = useState<string>();
   const [review, setReview] = useState<{ server: string[] | null; local: string[]; changeHash: string }>();
+  const started = useRef(false);
 
   const start = async () => {
+    if (started.current) return;
+    started.current = true;
     setMsg(undefined);
-    if (!signer) return toast.error("Your owner key isn't connected. Open Setup first.");
+    if (!signer) {
+      started.current = false;
+      return toast.error("Your owner key isn't connected. Re-run setup from Settings.");
+    }
     try {
-      await signer.unlock?.(); // F8.3: passkey prompt while we still have the click's user activation
+      await signer.unlock?.(); // F8.3: passkey prompt while we still have the tap's user activation
       const s = await api<{ attemptId: string; change: WireChange; changeHash: string; serverDecoded?: string[] }>(`/api/approvals/${approvalId}/start`, {});
       const change = toMsg(s.change);
       const local = canonicalChange(chainId, getAddress(vault), change);
@@ -53,6 +60,11 @@ export function ApprovalRunner({ approvalId, vault, chainId, signer, onDone }: {
       onDone?.();
     }
   };
+
+  useEffect(() => {
+    if (autoStart) void start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const afterWorld = async (a: Attempt) => {
     if (a.status !== "APPROVED" || !a.change) {
@@ -86,27 +98,27 @@ export function ApprovalRunner({ approvalId, vault, chainId, signer, onDone }: {
     <div className="space-y-3">
       {review && step !== "idle" && <DecodePanel server={review.server} local={review.local} />}
       {step === "idle" && (
-        <Button size="lg" className="w-full" onClick={start}>
-          <ScanFace /> Approve with World ID
+        <Button variant="green" className="w-full" onClick={start}>
+          <Globe /> Approve with World ID
         </Button>
       )}
       {step === "world" && attemptId && <WorldCheck attemptId={attemptId} onDone={afterWorld} />}
       {(step === "signing" || step === "submitting") && (
-        <div className="well flex items-center gap-2 p-4 text-[0.85rem]">
-          <Loader2 className="size-4 animate-spin" /> {step === "signing" ? "Signing with your post-quantum key…" : "Applying onchain (we pay the gas)…"}
+        <div className="flex items-center gap-2.5 rounded-[16px] bg-blue-bg p-4 text-[15px] text-blue">
+          <Loader2 className="size-[18px] animate-spin" /> {step === "signing" ? "Signing with your post-quantum key…" : "Applying onchain (we pay the gas)…"}
         </div>
       )}
       {step === "done" && tx && (
-        <div className="well flex items-center justify-between gap-2 p-4">
-          <div className="flex items-center gap-2 text-[0.88rem] font-medium">
-            <CheckCircle2 className="size-5 text-[var(--ok)]" /> Limit updated onchain
+        <div className="flex items-center justify-between gap-2 rounded-[16px] bg-green-bg p-4">
+          <div className="flex items-center gap-2 text-[15px] font-semibold text-green">
+            <CheckCircle2 className="size-5" /> Limit updated onchain
           </div>
-          <TxLink hash={tx} label="View" />
+          <TxLink hash={tx} label="View" className="text-green" />
         </div>
       )}
       {step === "failed" && msg && (
-        <div className="well flex items-start gap-2 p-4 text-[0.82rem]">
-          <XCircle className="mt-0.5 size-4 shrink-0 text-[var(--bad)]" />
+        <div className="flex items-start gap-2.5 rounded-[16px] bg-red-bg p-4 text-[14px] leading-5 text-red">
+          <XCircle className="mt-0.5 size-[18px] shrink-0" />
           <span>{msg}</span>
         </div>
       )}
