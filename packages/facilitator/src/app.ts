@@ -6,6 +6,7 @@ import { RelayerError } from "@leash/relayer";
 import { findEvent } from "./engine.js";
 import type { FacilitatorContext } from "./context.js";
 import { computeStats } from "./stats.js";
+import { PqLedger, pqSummary } from "./pqledger.js";
 
 const ip = (c: Context) => c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? c.req.header("x-real-ip") ?? "local";
 
@@ -185,6 +186,16 @@ export function createApp(ctx: FacilitatorContext) {
 
   // ---------------------------------------------------------------- dashboard data
   app.get("/gas-tank", async (c) => c.json(await ctx.relayer.gasTank()));
+  // F1: every tx where a Falcon (post-quantum) signature was verified onchain, with measured verify gas
+  const ledger = new PqLedger(ctx.client, ctx.cfg.chain.id, ctx.cfg.deployment.factory, BigInt((ctx.cfg.deployment as { deployedAtBlock?: number }).deployedAtBlock ?? 0));
+  app.get("/pq-ledger", async (c) => {
+    try {
+      const entries = await ledger.entries();
+      return c.json({ entries, summary: pqSummary(entries, ctx.store.counter("vouchers_served")) });
+    } catch (e) {
+      return fail(c, e);
+    }
+  });
   app.get("/stats", async (c) => c.json(await computeStats(ctx)));
   app.get("/events", (c) => c.json(ctx.store.events(Number(c.req.query("limit") ?? 100), c.req.query("kind") ?? undefined)));
   app.get("/claims", (c) =>

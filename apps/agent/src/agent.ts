@@ -6,7 +6,8 @@
  *   agent c                      Scenario C: leaked session key is bounded; owner revokes (PQ-only)
  */
 import { decodePaymentRequiredHeader, decodePaymentResponseHeader } from "@x402/core/http";
-import { decodeErrorResult, encodeFunctionData, formatUnits, type Address, type Hex } from "viem";
+import { encodeFunctionData, formatUnits, type Abi, type Address, type Hex } from "viem";
+import { revertName } from "./lib/revert.js";
 import {
   EXPLORERS,
   encode,
@@ -171,13 +172,7 @@ async function scenarioB() {
     await publicClient.call({ account: session.address, to: vault, data });
     log(`${c.red}  !! unexpected: applyChange did not revert${c.reset}`);
   } catch (e) {
-    const raw = /0x[0-9a-fA-F]{8,}/.exec(e instanceof Error ? e.message : String(e))?.[0];
-    let name = "reverted";
-    try {
-      if (raw) name = decodeErrorResult({ abi: leashVaultAbi, data: raw as Hex }).errorName;
-    } catch {
-      name = raw ?? name;
-    }
+    const name = revertName(e, leashVaultAbi as Abi);
     log(`${c.green}  ✔ (1) applyChange with the session key → reverts onchain: ${name} — only the owner's post-quantum key is root${c.reset}`);
   }
 
@@ -280,9 +275,15 @@ async function printSession() {
   log(`WBT balance: ${formatUnits(await publicClient.getBalance({ address: s.address }), 18)}`);
 }
 
-const main = { a: scenarioA, b: scenarioB, c: scenarioC, h: scenarioH, stats: printStats, session: printSession }[scenario as "a"];
+async function scenarioQ() {
+  const { qdayDrill, qdayCheckOldKey } = await import("./qday.js");
+  if (args.includes("--check")) return qdayCheckOldKey();
+  await qdayDrill();
+}
+
+const main = { a: scenarioA, b: scenarioB, c: scenarioC, h: scenarioH, q: scenarioQ, stats: printStats, session: printSession }[scenario as "a"];
 if (!main) {
-  console.log("usage: agent a [--calls N] | b [--cap 500] | c | h [--calls N] | stats | session   (env: AGENT_VAULT, AGENT_SESSION)");
+  console.log("usage: agent a [--calls N] | b [--cap 500] | c | h [--calls N] | q [--check] (Q-Day drill; --check re-tests the retired key) | stats | session   (env: AGENT_VAULT, AGENT_SESSION)");
   process.exit(1);
 }
 main().catch((e) => {

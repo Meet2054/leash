@@ -17,6 +17,7 @@ export type Deployment = {
   relayer: Address;
   attestor: Address;
   claimFee: number | string;
+  deployedAtBlock?: number;
 };
 
 export type FacilitatorConfig = {

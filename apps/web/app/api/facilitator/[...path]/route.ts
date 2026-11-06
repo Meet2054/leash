@@ -2,7 +2,7 @@ import { FACILITATOR_URL } from "@/lib/server/env";
 
 export const dynamic = "force-dynamic";
 
-const ALLOWED = new Set(["stats", "gas-tank", "channels", "claims", "events", "discovery", "supported", "health"]);
+const ALLOWED = new Set(["stats", "gas-tank", "channels", "claims", "events", "discovery", "supported", "health", "pq-ledger"]);
 
 /** Read-only proxy for dashboard data (so the browser only talks to this origin). */
 export async function GET(req: Request, { params }: { params: Promise<{ path: string[] }> }) {

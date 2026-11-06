@@ -8,9 +8,10 @@ import { Mandate } from "@/components/Mandate";
 import { Approvals } from "@/components/Approvals";
 import { Activity } from "@/components/Activity";
 import { Stats } from "@/components/Stats";
+import { PqLedger } from "@/components/PqLedger";
 
 type Config = { chainId: number; factory: string; verifier: string; worldMode: "world" | "mock"; signerUrl: string; explorer: string };
-const TABS = ["Onboard", "Mandate", "Approvals", "Activity", "Stats"] as const;
+const TABS = ["Onboard", "Mandate", "Approvals", "Activity", "PQ", "Stats"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function Home() {
@@ -65,6 +66,7 @@ export default function Home() {
     if (!cfg) return <div className="card muted">Loading…</div>;
     if (tab === "Onboard") return <Onboard chainId={cfg.chainId} factory={cfg.factory} signer={signer} signerError={signerError} vault={vault} setVault={setVault} />;
     if (tab === "Stats") return <Stats />;
+    if (tab === "PQ") return <PqLedger />;
     if (!vault) return <div className="card text-sm">Create or select a vault in Onboard first.</div>;
     if (tab === "Mandate") return <Mandate vault={vault} chainId={cfg.chainId} signer={signer} />;
     if (tab === "Approvals") return <Approvals vault={vault} chainId={cfg.chainId} signer={signer} />;
@@ -93,7 +95,7 @@ export default function Home() {
       </header>
       {body}
       <nav className="fixed bottom-0 inset-x-0 border-t line" style={{ background: "var(--card)" }}>
-        <div className="mx-auto max-w-xl grid grid-cols-5">
+        <div className="mx-auto max-w-xl grid grid-cols-6">
           {TABS.map((t) => (
             <button key={t} onClick={() => setTab(t)} className={`py-3 text-xs font-semibold ${tab === t ? "text-[var(--color-brand)]" : "muted"}`}>
               {t}
