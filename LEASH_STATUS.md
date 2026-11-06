@@ -1,8 +1,8 @@
-# LEASH_STATUS — 2026-11-06T09:25+05:30 IST — milestone M8 (in progress: docs + deploy; M7 done with HBAR; World real-IdP run pending)
+# LEASH_STATUS — 2026-11-06T11:35+05:30 IST — milestone M8 (in progress: docs + deploy; M7 done with HBAR; World real-IdP run pending)
 
 ## 1. Summary (3 lines max)
 Whitechain is live and verified: 300 x402 payments settled in 10 USDT claims, and Falcon-gated vault creation and cap raises are onchain. Hedera is live: 3 x402 `exact` payments settled through our facilitator (fee payer), one refusal above the approval threshold, and an HCS audit log. Settlement there is in **HBAR**, because the Circle USDC faucet stalled.
-Open blockers (HUMAN): World IdP credentials (the real World check is so far **MOCKED**), a hosting provider + DOMAIN for the live link, and the confirmed submission deadline.
+Open blockers (HUMAN): World IdP credentials (the real World check is so far **MOCKED**), and a hosting provider + DOMAIN (after the all-protocol test pass). Deadline: **2026-11-07 04:54 IST**, build cutoff **2026-11-06 22:54 IST**.
 
 ## 2. Gates
 | Gate | Result | Evidence | Fallback taken |
@@ -98,3 +98,14 @@ caa3de8 feat(hedera): x402 exact on hedera:testnet via our facilitator + HCS aud
 44bf22f docs: first live USDT claims on Whitechain — 300 x402 payments in 10 claims
 bdc81d8 fix(facilitator,sdk): one rate-limit token per paid request; resync client state on 402
 ```
+
+## 12. Features F1–F7
+| Feature | Status | Evidence | Tests |
+|---|---|---|---|
+| F1 PQ Ledger + Q-Day drill | ✅ done (rotation's World approval **MOCKED**) | PQ Ledger: 4 PQ-verified txs (~1.56M verify gas, 82–97% of tx gas); rotation https://explorer.testnet.whitechain.io/tx/0x1c4fc9b384bad46fdf5d319f62af0011fecf52da918ada3d2b51f3844279a784 · new-key tightening https://explorer.testnet.whitechain.io/tx/0x8543b2c0be8a95ff9a68ee32ed0c811218f5e4d07ed51061db6c51761f8f113e · retired key → `WrongPqKey` (simulated) | forge `test_rotatePqKey_oldKeyStopsWorking` |
+| F2 circuit breaker (Scenario D) | ⏳ next | — | — |
+| F3 reorg-safe settlement | ⏳ | — | — |
+| F4 agent flight recorder | ⏳ | — | — |
+| F5 one human, one budget | P3 | — | — |
+| F6 never-callable-by-session list | P3 (partly covered: `test_wrongPqPubKey_reverts_agentCannotChangeOwnMandate`, trust-split tests) | — | — |
+| F7 Break-the-Leash arena | P3 | — | — |

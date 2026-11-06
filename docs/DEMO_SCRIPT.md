@@ -68,6 +68,17 @@ pnpm agent c
 - Owner → **Mandate** → **Revoke** the session: "tightening needs only my Falcon key, no World check" → tx.
 - `pnpm agent a --calls 3` → refused.
 
+### + Q-Day drill (≤ 20 s; World cut and master cut)
+```bash
+pnpm agent q          # rotate the post-quantum root live
+pnpm agent q --check  # the retired key is refused (WrongPqKey), simulated
+```
+> "This is a post-quantum key rotation, live onchain. The old key is 'compromised', so the owner approves with World ID and signs with the old key one last time. Same vault, same money, new root of trust, and the old key is now refused."
+
+### + PQ Ledger (≤ 15 s; drop from the Whitechain cut if over time)
+Owner app → **PQ** tab:
+> "Every post-quantum signature Leash has verified onchain: about 1.5M gas each, so we only pay it on rare owner actions, never on the 300 payments."
+
 ### 2:55–3:15 · Hedera (when M7 is live)
 The x402 endpoint on Hedera settles HTS USDC through our facilitator (HashScan tx), and every channel open, claim, approval and denial is mirrored to an **HCS topic** (HashScan topic page) as a tamper-evident audit log.
 *If M7 isn't done: skip this segment in the Whitechain and World cuts.*

@@ -91,6 +91,15 @@ flowchart LR
 
 There is **no ECDSA owner path anywhere**: the only root authority is the post-quantum key. The verifier address is part of the vault config, so switching to a new PQ scheme is itself a loosening action.
 
+## Post-quantum, live: PQ Ledger and the Q-Day drill
+- **PQ Ledger** (owner app → **PQ** tab, `GET /facilitator/pq-ledger`) lists every transaction in which a Falcon-512 signature was verified onchain. Each signature and key is decoded from calldata, and the verify cost is measured by re-running it through the verifier. Today: **4 PQ-verified txs**, about **1.56M gas per Falcon verify (82–97% of each tx)**, against 300 payments that carried no PQ cost.
+- **Q-Day drill** (`pnpm agent q`): the owner's post-quantum root is rotated live, **same vault, same money, new root of trust**.
+  - `ROTATE_PQ_KEY` is loosening, so it needs a World approval plus a signature by the **old** key: [0x1c4f…a784](https://explorer.testnet.whitechain.io/tx/0x1c4fc9b384bad46fdf5d319f62af0011fecf52da918ada3d2b51f3844279a784). The World check was MOCKED for this run.
+  - The retired key is then refused (`WrongPqKey`, simulated, never sent; re-test with `pnpm agent q --check`).
+  - The new key signs its first tightening change: [0x8543…113e](https://explorer.testnet.whitechain.io/tx/0x8543b2c0be8a95ff9a68ee32ed0c811218f5e4d07ed51061db6c51761f8f113e).
+  - The vault balance (17.171374 USDT) was unchanged throughout. The forge test `test_rotatePqKey_oldKeyStopsWorking` covers the same property.
+- **Crypto-agility:** the verifier address is vault config. A loosening `SET_VERIFIER` change (Falcon signature plus World approval) can move a vault to ML-DSA or a future precompile **without migrating funds**.
+
 ## Data math
 Workload: 10,000 agents × 1 paid request per minute = 14.4M requests/day. Counting signature bytes only:
 
