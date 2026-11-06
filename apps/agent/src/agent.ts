@@ -20,6 +20,7 @@ import {
   type LeashClientEvent,
 } from "@leash/sdk";
 import { CHAIN_ID, FACILITATOR_URL, INBOX_URL, agentSession, deployment, loadVault, publicClient } from "./lib/config.js";
+import { scenarioAP } from "./ap.js";
 
 const [, , scenario = "a", ...args] = process.argv;
 const flag = (n: string, d: string) => (args.includes(`--${n}`) ? args[args.indexOf(`--${n}`) + 1] : d);
@@ -337,9 +338,9 @@ async function scenarioQ() {
   await qdayDrill();
 }
 
-const main = { a: scenarioA, b: scenarioB, c: scenarioC, d: scenarioD, h: scenarioH, q: scenarioQ, stats: printStats, session: printSession }[scenario as "a"];
+const main = { a: scenarioA, ap: scenarioAP, b: scenarioB, c: scenarioC, d: scenarioD, h: scenarioH, q: scenarioQ, stats: printStats, session: printSession }[scenario as "a"];
 if (!main) {
-  console.log("usage: agent a [--calls N] | b [--cap 500] | c | d [--workers 20] (swarm burst) | h [--calls N] | q [--check] (Q-Day drill; --check re-tests the retired key) | stats | session   (env: AGENT_VAULT, AGENT_SESSION)");
+  console.log("usage: agent a [--calls N] | ap (accounts-payable: Hedera translation + Whitechain invoices) | b [--cap 500] | c | d [--workers 20] (swarm burst) | h [--calls N] | q [--check] (Q-Day drill; --check re-tests the retired key) | stats | session   (env: AGENT_VAULT, AGENT_SESSION)");
   process.exit(1);
 }
 main().catch((e) => {
