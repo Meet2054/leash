@@ -22,6 +22,9 @@ Open blockers (HUMAN): World IdP credentials (the real World check is so far **M
 | Hedera 296 | facilitator fee payer / HCS topic / agent / merchant (no contracts) | 0.0.11329302 / 0.0.11329753 / 0.0.11329481 / 0.0.11329482 | n/a | https://hashscan.io/testnet/topic/0.0.11329753 |
 
 ## 4. Live proof (most recent)
+- **REAL World (sandbox IdP, 2026-11-06 16:58 / 17:03 IST):** vault created after a real World check https://explorer.testnet.whitechain.io/tx/0x04dd758ae43fc97dc1354df60267ca6254ab7999571eef1252237412a0738d23 (vault 0x45A14B41D527d2Ea138dcf86C3f60cD2d27c5F06, acr orb, amr pop); Scenario B on it: 500 USDT ask blocked by the attestor policy (R1), 8 USDT denied (nothing signed), 8 USDT approved with a fresh real World check → cap 5→8 https://explorer.testnet.whitechain.io/tx/0xf714cb0b65f62a3a2b9ee690fcbd00158fa9a68cf526bf5bb9a5866445ba28f9
+- **Hedera in tUSDC (self-issued HTS test stablecoin 0.0.11337141, mentor-approved, not Circle USDC):** https://hashscan.io/testnet/transaction/0.0.11329302@1793957494.767070888 (+2 more); 0.6 tUSDC refused (human approval required)
+- **Live link:** https://leash.permissionless.in (Cloudflare Tunnel → laptop backend)
 - Whitechain USDT claim tx: https://explorer.testnet.whitechain.io/tx/0x1ab1d35e4951ed44954ee461eab6fd20568f4f50d530e3869ff126e474a18514 | Scenario A total 300 paid calls → 10 claims (up to 100 vouchers per claim) | merchants +4.75 USDT, relayer fees 0.010 USDT
 - Mandate loosening (approved) tx: https://explorer.testnet.whitechain.io/tx/0x36e2e14380f9fb673061803a10f3cc813f66cb85b5fb6b1b1e1a0ac577b6c1ab (cap 5 → 8 USDT; real Falcon signature; World check **MOCKED** issuer)
 - Denied approval attempt id + reason: **real World IdP (sandbox):** `577a3417-d2a7-4e1c-aed8-ea0cc73fdc76` → `access_denied` "Authorization was denied." → nothing signed, no vault created; HCS 0.0.11329753 #23 `ApprovalDenied` (13:44:52 IST). Earlier (MOCKED issuer): `a4a047c2-…` denied by the owner.

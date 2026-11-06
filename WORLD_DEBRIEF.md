@@ -8,11 +8,17 @@
 
 Code: [`apps/web/lib/server/world.ts`](apps/web/lib/server/world.ts), [`attestor.ts`](apps/web/lib/server/attestor.ts), and the routes under [`apps/web/app/api/`](apps/web/app/api/).
 
-## Honest status
-- The **device-grant integration against `auth.world.org` is implemented**: device_authorization, token polling with `authorization_pending` / `slow_down` / `access_denied` / `expired_token`, and JWKS validation with `jose`.
-- **It has not yet run against the real IdP.** We don't have portal credentials yet, and we don't have a sandbox World ID (the TestFlight link from the prize page may be dead).
-- Every World check so far ran with `WORLD_MODE=mock`: a local RS256 issuer that mints an ID token, which then goes through **the same validation code path** (signature, `iss`, `aud`, `exp`, `auth_time` > attempt start, `amr ∋ pop`, `jti` single use, subject equals the vault's bound World ID). It is labelled **MOCKED** in the UI, the logs and the README.
-- Live onchain result with the mocked issuer: a denied request → no transaction. An approved request → the agent's cap went 5 → 8 USDT onchain on Whitechain (tx `0x36e2e143…c1ab`).
+## Honest status (updated 2026-11-06 17:05 IST)
+- **Real World IdP (sandbox) works end to end, and it is live onchain:**
+  - **Vault creation after a real World check:** World redirected to our callback with the code; our backend exchanged it, validated the ID token (`acr` = orb, `amr` = `["pop"]`, `auth_time` 16:58:19 IST) and bound the subject (`0x52a6…2249`). The attestor signed and the owner's Falcon key signed. Vault [`0x45A14B41…5F06`](https://explorer.testnet.whitechain.io/address/0x45A14B41D527d2Ea138dcf86C3f60cD2d27c5F06) was created, [tx `0x04dd758a…8d23`](https://explorer.testnet.whitechain.io/tx/0x04dd758ae43fc97dc1354df60267ca6254ab7999571eef1252237412a0738d23).
+  - **Scenario B with real World on that vault:**
+    1. The agent's direct `applyChange` reverts (`WrongPqKey`).
+    2. A Cornell-style 500 USDT ask is blocked by our attestor policy before any World check (max 2× per 24 h).
+    3. An 8 USDT ask the owner **denies** → nothing signed, nothing onchain.
+    4. An 8 USDT ask the owner **approves** with a fresh real World check (pinned to the vault's `sub`, `auth_time` 17:03:20 IST) → cap 5 → 8 onchain, [tx `0xf714cb0b…28f9`](https://explorer.testnet.whitechain.io/tx/0xf714cb0b65f62a3a2b9ee690fcbd00158fa9a68cf526bf5bb9a5866445ba28f9).
+- **Real denied and expired paths:** two device-grant attempts returned `access_denied` (13:44, 13:56), and three expired without completion (15:22, 15:45, 16:49). None of them signed anything.
+- **Which flow:** the authorization-code + PKCE (browser) flow, with the callback served by our backend. The device grant is still implemented, but our approvals never completed with it (see friction #10).
+- **What is still MOCKED:** the older CLI vault `0x3B77…c392` and its approvals (bootstrap, Q-Day drill, F8 smoke test) used the local mock issuer. They are labelled MOCKED wherever they appear.
 
 ## First run against the real World IdP (sandbox), 2026-11-06
 - **13:28 IST:** credentials from the sandbox portal accepted (`device_authorization` → user code). Our backend started a vault-creation attempt bound to the InitConfig (`577a3417…`).
@@ -24,7 +30,7 @@ Code: [`apps/web/lib/server/world.ts`](apps/web/lib/server/world.ts), [`attestor
 ## Time to first success
 - About **55 minutes** from opening the docs (23:30 IST) to the first approved, World-gated mandate change landing onchain (≈00:25 IST). That was with the mocked issuer.
 - Reading and understanding the IdP took about 10 minutes, because the docs are concise and the discovery document is complete.
-- Time to first success against the **real** IdP: not reached yet (blocked on credentials and a test identity).
+- Time to first success against the **real** IdP: about **3 h 30 min**, from working credentials (13:28 IST) to the first real World-gated vault creation (16:58 IST). Only ~1 h of that was code (the browser flow + callback). The rest was waiting for the sandbox identity to issue and finding out why approvals never came back (friction #10). With what we know now, the job is ~1 h: register the callback on a domain you actually serve, use the code flow, and click through "Are you a returning user?" on first use.
 
 ## Friction
 1. **Naming.** The prize says "World ID Agent Pass" and links `auth.world.org`, but the docs never use "Agent Pass"; they say "World IdP". We also had to rule out AgentKit (`@worldcoin/agentkit`, the x402 product) and IDKit. One sentence ("Agent Pass = World IdP at auth.world.org") would remove that confusion.
@@ -41,6 +47,14 @@ Code: [`apps/web/lib/server/world.ts`](apps/web/lib/server/world.ts), [`attestor
 7. **The web Simulator can't be used.** Its CSP blocks the IdP bridge (confirmed), so you can't test from it.
 8. **No Agent Pass workshop, and conflicting test-identity guidance.** The ETHGlobal page links only an IDKit workshop. It says proofs are mocked so the sandbox app isn't needed, while World's testing guide says a sandbox World ID needs the TestFlight app. Neither says which issuer or steps the mock uses.
 9. **Good: agent-native tooling exists.** The developer MCP server lets a coding agent register and manage the app (CIMD OAuth, Google consent), and the step-up guide's "Human checkpoints" section describes exactly our pattern.
+
+10. **Device-grant approvals never completed for our client, and the cause was invisible.**
+    - With our client, the app showed approval, but the token poll stayed `authorization_pending` until the device code expired (three attempts). The OAuth Playground's default client worked.
+    - What we found:
+      - After the app approval, the **web page** still asks *"Are you a returning user? This proof of human is not linked to any account"* (create account / I have an account). Nothing in the app or the docs says the request waits on that browser step.
+      - The redirect URI we had registered was on a domain that serves a different site.
+    - We switched to the authorization-code flow with a callback we serve (via a Cloudflare tunnel), clicked "No, create an account" once, and it worked first time. The second approval asked "Yes, I have an account".
+    - **Ask:** document the account-linking step for the device flow, and make the token poll return a distinct error while it is waiting on it.
 
 ## Missing capability / docs
 - **An action-bound approval:** let the relying party pass an `action_hash` (or a `binding_message` that is shown to the user **and signed into the ID token**).
