@@ -343,14 +343,16 @@ Rules: never claim something works without a link, a test result or command outp
 ## 14. Project Memory (living — keep updated; newest first within each list)
 
 ### Submission deadline
-- **Confirmed deadline: PENDING — the human will provide it (asked 2026-11-06 09:10 review).** Do not guess. When it lands, replace D below with the real IST time and rewrite this plan with absolute times.
-- Backward plan relative to the deadline D (priority order from the 09:10 review: real World ID → hosting → fresh demo vault):
-  - D−14h: real World IdP approval end to end recorded (needs WORLD_CLIENT_ID/SECRET); hosting provider picked, `deploy/` brought up on DOMAIN.
-  - D−10h: fresh demo vault onboarded in the web app (WASM key, demo session), funded, Scenario A/B/C rehearsed on the hosted stack.
-  - D−6h: **code freeze** (only doc/status fixes after this); final `pnpm test`, `pnpm status`, LEASH_STATUS regenerated.
-  - D−4h: record the demo video (docs/DEMO_SCRIPT.md), Whitechain 2–4 min + Hedera ≤ 5 min cuts.
-  - D−2h: repo public, README links checked, submission form filled.
-  - D: submitted, with a buffer for upload problems.
+- **Submission deadline: 2026-11-07 04:54 IST** (human, 2026-11-06 10:54 IST: "18 hrs as of now").
+- **Build cutoff: 2026-11-06 22:54 IST** (human: "consider only 12 hrs"). The last 6 h (22:54 → 04:54) are reserved for pitch preparation and pitching: no feature work after 22:54.
+- Backward plan (priority: World → F1 → test all protocols → hosting → demo vault → video):
+  - **now → 13:00**: real World IdP (human gets credentials via developer MCP or portal; ask mentors about mocked proofs) · F1 PQ Ledger + Q-Day drill in parallel.
+  - **13:00 → 16:00**: real World approval end to end recorded (tx + time-to-first-success in WORLD_DEBRIEF) · F1 done · start F2 (circuit breaker) if P0 is unblocked.
+  - **16:00 → 19:00**: "tested with all protocols" pass (Whitechain + World real + Hedera) → human shares the hosting provider + DOMAIN → `deploy/bootstrap.sh` → `deploy/check.sh` green.
+  - **19:00 → 21:00**: fresh demo vault via web onboarding on the hosted URL (real World, WASM key, `agent-session-demo`), funded (swap) · rehearse Scenarios A/B/C/H (+ Q-Day drill).
+  - **21:00 → 22:54**: **feature freeze 21:00**; final `pnpm test`, `pnpm status`, LEASH_STATUS + README links, record the demo video (DEMO_SCRIPT).
+  - **22:54 → 04:54**: pitch prep + pitching (human). Repo public + submission form before 04:54.
+  - The CLI agent session expires 2026-11-07 00:08 IST, after the build cutoff, so it doesn't block anything.
 
 ### Current state
 - **2026-11-06 09:30 IST (after review round):** items 1 (deadline, awaiting the date), 2–6 done; 7 waits on WORLD_CLIENT_ID/SECRET; 8 (fresh demo vault) after real World + hosting, with a fallback before the CLI session expires 2026-11-07 00:08 IST. forge 75/75, vitest 29/29, gitleaks clean, deploy kit in `deploy/`.
