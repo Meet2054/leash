@@ -8,7 +8,7 @@
 
 ## 0. How you work on this repo
 
-1. **Session start:** read `docs/PROJECT_JOURNAL.md` (complete memory: dream, taste, timeline, failures + causes, runbook, human asks), then §14, run `pnpm status`, then continue the current milestone from §11. Append to the journal as you go.
+1. **Session start:** read `docs/PROJECT_JOURNAL.md` (complete memory: dream, taste, timeline, failures + causes, runbook, human asks), then §14, then read `docs/VISION.md` (why Leash exists, evidence E1–E8, strict P0→P3 priorities, features F1–F7), then `LEASH_STATUS.md`; run `pnpm status`, then continue the current milestone from §11 in the VISION priority order. Append to the journal as you go.
 2. Keep a task list per milestone and tick items as they finish.
 3. **Commit small and often** (every meaningful step, at least every 45 minutes), using conventional messages (`feat(vault): …`, `test(facilitator): …`). Never squash, never force-push, never make one giant commit. Judges check commit history.
 4. Run the relevant tests before every commit. Don't commit with failing tests unless the commit message says `wip:` and states why.
