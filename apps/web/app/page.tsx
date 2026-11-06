@@ -125,14 +125,17 @@ export default function Home() {
             </div>
             <div className="leading-tight">
               <div className="text-[1.05rem] font-semibold tracking-tight">Leash</div>
-              <div className="text-[0.72rem] text-muted-foreground">Spending limits for your AI agents</div>
+              <div className="hidden text-[0.72rem] text-muted-foreground sm:block">Spending limits for your AI agents</div>
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            <Link href="/lab" className="rounded-full bg-primary px-3 py-1.5 text-[0.75rem] font-semibold text-primary-foreground">
+            <Link href="/lab" className="rounded-full bg-primary px-2.5 py-1.5 text-[0.75rem] font-semibold text-primary-foreground sm:px-3">
               Attack lab
             </Link>
-            <Link href="/docs" className="rounded-full bg-muted px-3 py-1.5 text-[0.75rem] font-medium text-foreground">
+            <Link href="/usecase" className="rounded-full bg-muted px-2.5 py-1.5 sm:px-3 text-[0.75rem] font-medium text-foreground">
+              Use case
+            </Link>
+            <Link href="/docs" className="rounded-full bg-muted px-2.5 py-1.5 sm:px-3 text-[0.75rem] font-medium text-foreground">
               Docs
             </Link>
             <Dialog>

@@ -77,6 +77,7 @@ export default function Docs() {
         <Steps
           items={[
             <>Open the <Link className="underline underline-offset-4" href="/lab">Attack lab</Link>, choose a model, and press <b>Run the attack on both</b>. Watch the same AI lose money without Leash and get blocked with Leash.</>,
+            <>See a real job: open <Link className="underline underline-offset-4" href="/usecase">Use case</Link> and press <b>Run</b>. An AI agent pays supplier invoices on Whitechain, buys a Marathi translation on Hedera, and gets stopped on a fake invoice.</>,
             <>Or set up your own vault: open <Link className="underline underline-offset-4" href="/">Setup</Link>, keep the defaults, verify with World ID, create the vault, then use <b>Limits → Try it with the demo agent</b>.</>,
           ]}
         />
