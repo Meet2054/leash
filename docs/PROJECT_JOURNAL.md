@@ -65,6 +65,7 @@ Track: **From Scratch** (all code written during the event; AI use disclosed; MI
 | 11-06 00:34–00:37 | **First real USDT claims**; Scenario A **300 paid calls → 10 claims**; fixed the self-throttle bug | `bdc81d8`, `44bf22f` |
 | 11-06 00:56 | Whitechain feedback, World debrief, demo script, this journal | `8d0e10a`+ |
 | 11-06 ~01:40–02:00 | Hedera: human created portal accounts (rotated once); bootstrap created the HCS topic + agent/merchant; Circle USDC faucet never delivered (first went to Arc, then the faucet stalled) | `caa3de8`, `635bedc` |
+| 11-06 09:10–09:30 | Review round: deadline placeholder, LEASH_STATUS regenerated, data math leads with 584×, gitleaks clean, deploy kit (Caddy + pm2), trust-split tests (forge 75/75), reproducible deploy record (bytecode exact match) | `b17cd4d`…`e396b1c` |
 | 11-06 ~02:12 | **Hedera live (HBAR fallback):** 3 x402 payments settled through our facilitator (fee payer), the 6 HBAR call was refused (human approval required), 5 HCS messages | this commit |
 
 ---
@@ -120,6 +121,8 @@ Money on chain: vault 17.17 USDT left; merchants received 4.75 USDT; fees 0.010 
 | 25 | Circle faucet "Tokens sent" but no USDC on Hedera (twice) | The faucet network was set to **Arc** (Circle's own testnet; the human's link was explorer.testnet.arc.io), not Hedera Testnet | Re-request with Network = **Hedera Testnet**, Send to = `0.0.11329481` (agent). Always check the network dropdown |
 | 26 | Human rotated the Hedera operator credentials | The HCS topic only accepts its submit key (the old operator) | `pnpm hedera:bootstrap -- --new-topic` created topic `0.0.11329753` under the new operator; restarted the facilitator + merchant so the fee payer is the new account. Agent/merchant accounts have their own keys, so they're unaffected |
 | 27 | Circle's Hedera USDC faucet stalled | Its sender `0.0.11920` made no user payouts from ~01:05 to 02:10 IST, despite "Tokens sent" in the UI | Switched the Hedera endpoints to **HBAR** (`HEDERA_PAY_ASSET=hbar`), funded the agent with 20 HBAR as payment money (fees still paid by the facilitator). Switch back with `HEDERA_PAY_ASSET=usdc` |
+| 28 | Journal edit hit the wrong table row | The script changed the first line starting `\| 5 \|` (failure #5) instead of human-ask #5 in §11 | Fixed in a follow-up commit (`441f590`). Lesson: match tables by a unique anchor, not a row number |
+| 29 | Onboarding would crash on Hedera merchants | Discovery started listing Hedera endpoints (payTo `0.0.x`), and the Onboard screen fed every payTo to `getAddress` | Filter discovery by `network === eip155:<chainId>` (`e396b1c`) |
 | 23 | Agent session expiry | The CLI vault's session was created with a 24 h TTL (expires 2026-11-07 00:08 IST) | Demo: onboard a fresh vault in the web app with `AGENT_SESSION=agent-session-demo` |
 
 ---

@@ -1,4 +1,4 @@
-# LEASH_STATUS — 2026-11-06T09:15+05:30 IST — milestone M8 (in progress: docs + deploy; M7 done with HBAR; World real-IdP run pending)
+# LEASH_STATUS — 2026-11-06T09:25+05:30 IST — milestone M8 (in progress: docs + deploy; M7 done with HBAR; World real-IdP run pending)
 
 ## 1. Summary (3 lines max)
 Whitechain is live and verified: 300 x402 payments settled in 10 USDT claims, and Falcon-gated vault creation and cap raises are onchain. Hedera is live: 3 x402 `exact` payments settled through our facilitator (fee payer), one refusal above the approval threshold, and an HCS audit log. Settlement there is in **HBAR**, because the Circle USDC faucet stalled.
@@ -28,7 +28,7 @@ Open blockers (HUMAN): World IdP credentials (the real World check is so far **M
 - Hedera settled payment: https://hashscan.io/testnet/transaction/0.0.11329302@1793911532.195465156 (+ `…1533.673150092`, `…1538.419042992`); fee payer = our facilitator; **HBAR** | HCS topic: https://hashscan.io/testnet/topic/0.0.11329753 (5 messages: genesis, 3 settled, 1 refused `leash_human_approval_required`)
 
 ## 5. Tests
-- forge: 71/71 passed (LeashVaultTest 59, EthFalconTest 8, FalconE2ETest 3, Eip712VectorsTest 1). No failures.
+- forge: **75/75** passed (LeashVaultTest 63 incl. 4 new `test_trustSplit_*`, EthFalconTest 8, FalconE2ETest 3, Eip712VectorsTest 1). No failures.
 - vitest: 29/29 passed (sdk 10, relayer 10, facilitator e2e 5, web WASM-Falcon 4). No failures. `packages/hedera` has no unit tests yet (exercised live by `pnpm agent h`).
 - Gas: openChannel 164,512 · claim ~101k avg onchain (≤ 93,360 in forge) · applyChange (real Falcon, loosening) 1,651,264 onchain · createVault (real Falcon) 1,898,270 onchain
 
@@ -70,13 +70,17 @@ Open blockers (HUMAN): World IdP credentials (the real World check is so far **M
 - **Agent session expiry:** the CLI session (`keys/agent-session.json`) expires 2026-11-07 00:08 IST. The demo will use a fresh web-onboarded vault and the `agent-session-demo` key.
 - **Trust points:** the attestor key and the relayer/facilitator; state lives in local SQLite. Relayer and attestor are immutable in the factory (see README Limitations).
 - **Secrets audit (2026-11-06 09:17 IST):** `gitleaks git --log-opts=--all` (gitleaks 8.30.1) over all 37 commits (~869 KB) found **1 finding, a false positive**: rule `generic-api-key` matched `"token": "0xcedf…55a7"` in `contracts/deployments/1874.json`, the public USDT contract address. It is listed with a comment in `.gitleaksignore`, and the re-scan reports **no leaks**. `git log --all -- .env keys/` → **0 commits** (neither path was ever committed). Only `.env.example` (placeholders) is tracked. A separate check confirmed none of the real `.env`/`keys/` private keys appear anywhere in history.
-- No live hosting yet (services run on a laptop).
+- No live hosting yet (services run on a laptop). **Deploy kit ready** (`deploy/`: Caddy HTTPS + pm2 + persistent volume, parameterized by DOMAIN; routing verified locally 8/8). Waiting on a provider + DOMAIN.
+- Relayer and attestor are immutable in the factory: rotating either means a new factory. Existing vaults stay usable and merchants can self-claim without the fee.
 
 ## 9. Decisions since last report
 - Hedera via x402 `exact` + facilitator-enforced mandate + HCS (spec §10 design), asset-configurable (`HEDERA_PAY_ASSET`). HBAR now, USDC when funded.
 - Hedera operator rotated by the human to `0.0.11329302`; the audit topic was recreated (`0.0.11329753`) because HCS only accepts its submit key.
 - Data math: lead with **~584× (Falcon both sides)**, ~876× vs ML-DSA-44 second (review 09:10).
 - Full memory of the build: `docs/PROJECT_JOURNAL.md`.
+- Two-key trust split stated in the README and proven in tests: the attestor alone can't loosen, and the PQ key alone can only tighten.
+- Reproducible deploy record: `contracts/deployments/1874.json` (deploy txs, solc 0.8.25, cancun, ZKNox `43ac863`, deploy commit `b21410a`); the live bytecode of all 4 contracts exactly matches a local build (immutables masked).
+- Review 09:10 items: 1 deadline placeholder (awaiting date) · 2 ✅ · 3 ✅ · 4 ✅ · 5 ✅ · 6 ✅ kit ready · 7 ⏳ World credentials · 8 ⏳ demo vault (after real World + hosting; fallback before 2026-11-07 00:08 IST).
 
 ## 10. Questions for the reviewer
 1. What's the confirmed submission deadline (IST)? The backward plan in CLAUDE.md §14 is waiting on it.

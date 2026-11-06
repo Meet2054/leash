@@ -353,6 +353,7 @@ Rules: never claim something works without a link, a test result or command outp
   - D: submitted, with a buffer for upload problems.
 
 ### Current state
+- **2026-11-06 09:30 IST (after review round):** items 1 (deadline, awaiting the date), 2–6 done; 7 waits on WORLD_CLIENT_ID/SECRET; 8 (fresh demo vault) after real World + hosting, with a fallback before the CLI session expires 2026-11-07 00:08 IST. forge 75/75, vitest 29/29, gitleaks clean, deploy kit in `deploy/`.
 - Milestone: **M1 done** (forge green). **M2 gate PASS on deployed contracts** (2026-11-06): verified EthFalconVerifier on 1874 returns true for off-chain Falcon sigs over Leash digests (`contracts/test/vectors/falcon_leash.json`), false for wrong digest, ~1.58M gas. **M3 in progress**: sdk + relayer + facilitator + merchant done and green on anvil e2e (30 paid calls → 3 claims); next = run it on Whitechain with real USDT.
 - **M4**: attestor + approvals + denied path DONE with `WORLD_MODE=mock` (MOCKED World issuer); real World IdP code path written (device grant) but untested until the portal app exists (HUMAN). **M5**: owner app (5 screens) builds; **gate h6 Falcon WASM: PASS** (in-browser keys; localhost Python signer kept as alt).
 - Live on 1874: vault `0x3B77877490A4C2A89e55b94e969cae1fA190c392` (CLI bootstrap, World MOCKED) created `0x82290b8e…d298`; Scenario B approve → cap 5→8 `0x36e2e143…c1ab`; deny path → no tx (approval a4a047c2…); Scenario C attacker open → 422 MerchantNotAllowed (simulated, never sent).
