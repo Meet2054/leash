@@ -17,6 +17,9 @@ function fail(c: Context, e: unknown) {
 
 const toBig = (v: unknown) => BigInt(v as string);
 
+/** Events the attestor (owner app) may publish to the audit log / HCS. F8.1 adds the Loosening* lifecycle. */
+export const ATTESTOR_AUDIT_KINDS = ["ApprovalDenied", "ApprovalGranted", "ApprovalExpired", "ApprovalRequested", "LooseningPending", "LooseningBlocked", "LooseningCooldown", "LooseningCancelled"];
+
 export function createApp(ctx: FacilitatorContext) {
   const app = new Hono();
   app.use("*", cors({ origin: "*", allowHeaders: ["Content-Type", "Authorization"], allowMethods: ["GET", "POST", "OPTIONS"] }));
@@ -146,7 +149,7 @@ export function createApp(ctx: FacilitatorContext) {
   app.post("/audit", async (c) => {
     if (ctx.cfg.adminToken && c.req.header("authorization") !== `Bearer ${ctx.cfg.adminToken}`) return c.json({ error: "unauthorized" }, 401);
     const b = await c.req.json();
-    if (!["ApprovalDenied", "ApprovalGranted", "ApprovalExpired", "ApprovalRequested"].includes(b.kind)) return c.json({ error: "bad kind" }, 400);
+    if (!ATTESTOR_AUDIT_KINDS.includes(b.kind)) return c.json({ error: "bad kind" }, 400);
     await ctx.audit.publish({ kind: b.kind, chainId: ctx.cfg.chain.id, vault: b.vault, data: b.data });
     return c.json({ ok: true });
   });

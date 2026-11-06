@@ -190,7 +190,7 @@ async function cmdStatus() {
 // ------------------------------------------------------------------ scripted owner decisions (same API as the phone UI)
 
 type ApprovalView = { id: string; status: string; description: string; reason: string; source: string };
-type AttemptView = { status: string; reason: string | null; verificationUriComplete: string | null; userCode: string | null; mode: string; changeHash: Hex; change: { action: number; data: Hex; nonce: string; deadline: string } | null; vault: Address };
+type AttemptView = { status: string; cooldownUntil?: number | null; reason: string | null; verificationUriComplete: string | null; userCode: string | null; mode: string; changeHash: Hex; change: { action: number; data: Hex; nonce: string; deadline: string } | null; vault: Address };
 
 async function web<T>(path: string, body?: unknown): Promise<T> {
   const r = await fetch(`${INBOX_URL}${path}`, body === undefined ? {} : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -228,9 +228,14 @@ async function cmdApprove(id?: string) {
     console.log(`  → verify with World ID: ${s.verificationUriComplete}  (code ${s.userCode})`);
   }
   let at: AttemptView;
+  let saidCooldown = false;
   for (;;) {
     at = await web<AttemptView>(`/api/world/attempts/${s.attemptId}`);
-    if (at.status !== "PENDING") break;
+    if (at.status === "COOLDOWN" && !saidCooldown) {
+      console.log(`  ⏳ World ID verified; attestor cooldown until ${new Date((at.cooldownUntil ?? 0) * 1000).toISOString()} (F8 R3). Any PQ-signed change cancels it.`);
+      saidCooldown = true;
+    }
+    if (at.status !== "PENDING" && at.status !== "COOLDOWN") break;
     await new Promise((r) => setTimeout(r, 2000));
   }
   if (at.status !== "APPROVED" || !at.change) {

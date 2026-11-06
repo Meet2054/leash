@@ -16,6 +16,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const b = (await req.json()) as { pqPubKey: Hex; pqSig: Hex };
     const a = getApproval(id);
     if (!a?.attempt_id) return err("no World check for this approval", 409);
+    if (a.status !== "APPROVING") return err(`approval is ${a.status}`, 409); // e.g. the owner denied it after the World check
     const at = getAttempt(a.attempt_id);
     if (!at || at.status !== "APPROVED") return err(`World check is ${at?.status ?? "missing"}`, 409);
     if (!consumeAttempt(at.id)) return err("this approval was already used", 409);

@@ -5,7 +5,7 @@ import { dirname } from "node:path";
 import { DB_PATH } from "./env";
 
 export type ApprovalStatus = "PENDING" | "APPROVING" | "APPROVED" | "DENIED" | "EXPIRED" | "FAILED";
-export type AttemptStatus = "PENDING" | "APPROVED" | "DENIED" | "EXPIRED" | "ERROR";
+export type AttemptStatus = "PENDING" | "COOLDOWN" | "APPROVED" | "DENIED" | "EXPIRED" | "ERROR";
 
 export type ApprovalRow = {
   id: string;
@@ -51,6 +51,8 @@ export type AttemptRow = {
   wa_json: string | null;
   attestor_sig: string | null;
   consumed: number;
+  effects_json: string | null; // F8.1 decoded loosening effects (server-side decoding)
+  cooldown_until: number | null; // F8.1 R3: World passed, attestor signs only after this time
 };
 
 const SCHEMA = `
@@ -64,9 +66,17 @@ CREATE TABLE IF NOT EXISTS attempts (
   started_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, next_poll_at INTEGER NOT NULL, interval_s INTEGER NOT NULL,
   device_code TEXT, user_code TEXT, verification_uri TEXT, verification_uri_complete TEXT, mode TEXT NOT NULL,
   status TEXT NOT NULL, status_reason TEXT, sub TEXT, subject_hash TEXT, auth_time INTEGER, acr TEXT, amr TEXT,
-  jti TEXT UNIQUE, wa_json TEXT, attestor_sig TEXT, consumed INTEGER NOT NULL DEFAULT 0
+  jti TEXT UNIQUE, wa_json TEXT, attestor_sig TEXT, consumed INTEGER NOT NULL DEFAULT 0,
+  effects_json TEXT, cooldown_until INTEGER
 );
+CREATE TABLE IF NOT EXISTS loosenings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, vault TEXT NOT NULL, attempt_id TEXT NOT NULL, at INTEGER NOT NULL,
+  kind TEXT NOT NULL, target TEXT NOT NULL, before_v TEXT, after_v TEXT, amount TEXT
+);
+CREATE INDEX IF NOT EXISTS loosenings_vault_at ON loosenings (vault, at);
 `;
+// columns added after the first deploy (CREATE TABLE IF NOT EXISTS doesn't add them to an existing DB)
+const MIGRATIONS = ["ALTER TABLE attempts ADD COLUMN effects_json TEXT", "ALTER TABLE attempts ADD COLUMN cooldown_until INTEGER"];
 
 const g = globalThis as unknown as { __leashDb?: DatabaseSync };
 export function db(): DatabaseSync {
@@ -75,6 +85,13 @@ export function db(): DatabaseSync {
     g.__leashDb = new DatabaseSync(DB_PATH);
     g.__leashDb.exec("PRAGMA journal_mode = WAL;");
     g.__leashDb.exec(SCHEMA);
+    for (const m of MIGRATIONS) {
+      try {
+        g.__leashDb.exec(m);
+      } catch {
+        /* column already exists */
+      }
+    }
   }
   return g.__leashDb;
 }
@@ -125,4 +142,15 @@ export function setAttempt(id: string, patch: Partial<Omit<AttemptRow, "id">>) {
 export function consumeAttempt(id: string): boolean {
   const r = db().prepare("UPDATE attempts SET consumed = 1 WHERE id = ? AND consumed = 0 AND status = 'APPROVED'").run(id);
   return Number(r.changes) === 1;
+}
+
+// ------------------------------------------------------------------ F8.1 loosening history (24 h window)
+
+export type LooseningRow = { at: number; kind: string; target: string; before_v: string | null; after_v: string | null; amount: string | null };
+export function loosenings(vault: string, since: number) {
+  return db().prepare("SELECT at, kind, target, before_v, after_v, amount FROM loosenings WHERE vault = ? AND at > ? ORDER BY at").all(vault.toLowerCase(), since) as LooseningRow[];
+}
+export function recordLoosenings(vault: string, attemptId: string, rows: { at: number; kind: string; target: string; before?: bigint; after?: bigint; amount?: bigint }[]) {
+  const st = db().prepare("INSERT INTO loosenings (vault, attempt_id, at, kind, target, before_v, after_v, amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+  for (const r of rows) st.run(vault.toLowerCase(), attemptId, r.at, r.kind, r.target, r.before?.toString() ?? null, r.after?.toString() ?? null, r.amount?.toString() ?? null);
 }

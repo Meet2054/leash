@@ -7,7 +7,7 @@ export type Attempt = {
   attemptId: string;
   kind: "approval" | "create";
   mode: "world" | "mock";
-  status: "PENDING" | "APPROVED" | "DENIED" | "EXPIRED" | "ERROR";
+  status: "PENDING" | "COOLDOWN" | "APPROVED" | "DENIED" | "EXPIRED" | "ERROR";
   reason: string | null;
   userCode: string | null;
   verificationUri: string | null;
@@ -18,6 +18,8 @@ export type Attempt = {
   change: { action: number; data: `0x${string}`; nonce: string; deadline: string } | null;
   initConfig: { pqPubKeyHash: `0x${string}`; worldSubjectHash: `0x${string}`; verifier: `0x${string}`; initialMandate: `0x${string}` } | null;
   authTime: number | null;
+  cooldownUntil?: number | null;
+  effects?: unknown[] | null;
 };
 
 /** Shows the World ID Agent Pass request and polls the backend until the human finishes (or doesn't). */
@@ -31,7 +33,7 @@ export function WorldCheck({ attemptId, onDone }: { attemptId: string; onDone: (
         const x = await api<Attempt>(`/api/world/attempts/${attemptId}`);
         if (stop) return;
         setA(x);
-        if (x.status !== "PENDING") return onDone(x);
+        if (x.status !== "PENDING" && x.status !== "COOLDOWN") return onDone(x);
       } catch {
         /* retry */
       }
@@ -44,7 +46,7 @@ export function WorldCheck({ attemptId, onDone }: { attemptId: string; onDone: (
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attemptId]);
   useEffect(() => {
-    const t = setInterval(() => a && setLeft(Math.max(0, a.expiresAt - Math.floor(Date.now() / 1000))), 1000);
+    const t = setInterval(() => a && setLeft(Math.max(0, (a.status === "COOLDOWN" ? a.cooldownUntil ?? 0 : a.expiresAt) - Math.floor(Date.now() / 1000))), 1000);
     return () => clearInterval(t);
   }, [a]);
   if (!a) return <div className="muted text-sm">Starting World ID check…</div>;
@@ -55,7 +57,12 @@ export function WorldCheck({ attemptId, onDone }: { attemptId: string; onDone: (
         <div className="font-semibold">World ID Agent Pass</div>
         {mocked ? <span className="pill" style={{ color: "var(--color-warn)" }}>MOCKED issuer</span> : <span className="pill">World IdP</span>}
       </div>
-      {a.status === "PENDING" ? (
+      {a.status === "COOLDOWN" ? (
+        <div className="text-sm space-y-1">
+          <div className="font-semibold" style={{ color: "var(--color-warn)" }}>✓ World ID verified · cooldown {left}s before the attestor signs</div>
+          <div className="muted">Large withdrawal: the attestor waits before signing (F8). Press Deny, or apply any post-quantum-signed change (e.g. Freeze all), to cancel it.</div>
+        </div>
+      ) : a.status === "PENDING" ? (
         <>
           <div className="flex gap-4 items-center">
             {a.verificationUriComplete && (
