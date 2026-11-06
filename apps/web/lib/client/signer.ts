@@ -7,6 +7,9 @@ export interface OwnerSigner {
   label: string;
   pubKey(): Promise<Hex>;
   sign(digest: Hex, label?: string): Promise<Hex>;
+  /** F8.3: passkey unlock for an encrypted in-browser key (call it from a click, before async work). */
+  unlock?(): Promise<void>;
+  locked?(): boolean;
 }
 
 /** Fallback (spec §9.1): ZKNox reference signer running on the owner's machine, bound to 127.0.0.1. */

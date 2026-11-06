@@ -29,6 +29,7 @@ export function ApprovalRunner({ approvalId, vault, chainId, signer, onDone }: {
     setMsg(undefined);
     if (!signer) return setMsg("Connect the owner key first (Onboard tab).");
     try {
+      await signer.unlock?.(); // F8.3: passkey prompt while we still have the click's user activation
       const s = await api<{ attemptId: string; change: WireChange; changeHash: string; serverDecoded?: string[] }>(`/api/approvals/${approvalId}/start`, {});
       const change = toMsg(s.change);
       const local = canonicalChange(chainId, getAddress(vault), change);

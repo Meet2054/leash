@@ -33,10 +33,21 @@ export function Onboard(props: {
   const [created, setCreated] = useState<{ vault: string; txHash: string }>();
   const [err, setErr] = useState<string>();
   const [existing, setExisting] = useState("");
+  // F8.3: passkey (WebAuthn PRF) encryption of the in-browser Falcon seed
+  const [protection, setProtection] = useState<"none" | "passkey">("none");
+  const [keyMsg, setKeyMsg] = useState<string>();
 
   useEffect(() => {
     signer?.pubKey().then((pk) => setPubKeyHash(keccak256(pk))).catch(() => setPubKeyHash(undefined));
+    if (signer?.kind === "wasm") (signer as WasmSigner).protection().then(setProtection).catch(() => undefined);
   }, [signer]);
+  const downloadBackup = async () => {
+    const json = await (signer as WasmSigner).exportBackup();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+    a.download = "leash-owner-falcon-backup.json";
+    a.click();
+  };
 
   useEffect(() => {
     api<{ items: Resource[] }>("/api/facilitator/discovery/resources")
@@ -116,17 +127,37 @@ export function Onboard(props: {
         )}
         <p className="text-xs muted">Your Falcon key is the only root authority over the vault. Loosening also needs a fresh World ID check; tightening needs only this key.</p>
         {signer?.kind === "wasm" && (
-          <div className="flex gap-2">
-            <button
-              className="btn"
-              onClick={async () => {
-                const json = await (signer as WasmSigner).exportBackup();
-                const a = document.createElement("a");
-                a.href = URL.createObjectURL(new Blob([json], { type: "application/json" }));
-                a.download = "leash-owner-falcon-backup.json";
-                a.click();
-              }}
-            >
+          <div className="text-xs">
+            {protection === "passkey" ? (
+              <span className="pill" style={{ color: "var(--color-ok)" }}>🔒 encrypted at rest · unlocks with your passkey</span>
+            ) : (
+              <span className="pill" style={{ color: "var(--color-warn)" }}>unencrypted in this browser (IndexedDB)</span>
+            )}
+            {keyMsg && <span className="ml-2 muted">{keyMsg}</span>}
+          </div>
+        )}
+        {signer?.kind === "wasm" && (
+          <div className="flex flex-wrap gap-2">
+            {protection === "none" && (
+              <button
+                className="btn btn-primary"
+                onClick={async () => {
+                  setKeyMsg(undefined);
+                  try {
+                    // the backup is the only way back if the passkey is lost: download it first
+                    await downloadBackup();
+                    await (signer as WasmSigner).protectWithPasskey();
+                    setProtection("passkey");
+                    setKeyMsg("Protected. Keep the backup file offline.");
+                  } catch (e) {
+                    setKeyMsg(e instanceof Error ? e.message : String(e));
+                  }
+                }}
+              >
+                Protect with passkey
+              </button>
+            )}
+            <button className="btn" onClick={() => downloadBackup().catch((e) => setKeyMsg(e instanceof Error ? e.message : String(e)))}>
               Export key backup
             </button>
             <label className="btn cursor-pointer">
