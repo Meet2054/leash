@@ -17,7 +17,8 @@
     "web": "pnpm --filter @leash/web dev",
     "owner-signer": "tools/owner-signer/.venv/bin/python tools/owner-signer/falcon_signer.py serve --key keys/owner.json --port 8787",
     "build:falcon-wasm": "bash tools/falcon-wasm/build.sh",
-    "hedera:bootstrap": "pnpm --filter @leash/hedera run bootstrap"
+    "hedera:bootstrap": "pnpm --filter @leash/hedera run bootstrap",
+    "verify-log": "pnpm --filter @leash/facilitator run verify-log"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

@@ -72,6 +72,15 @@ CREATE TABLE IF NOT EXISTS resources (
   extensions TEXT, updated INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS counters (k TEXT PRIMARY KEY, v INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS voucher_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, channel_id TEXT NOT NULL, request_id TEXT NOT NULL, resource_hash TEXT NOT NULL,
+  cumulative TEXT NOT NULL, at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS voucher_log_channel ON voucher_log (channel_id, id);
+CREATE TABLE IF NOT EXISTS flight_records (
+  claim_tx TEXT PRIMARY KEY, channel_id TEXT NOT NULL, merkle_root TEXT NOT NULL, count INTEGER NOT NULL,
+  first_id INTEGER NOT NULL, last_id INTEGER NOT NULL, at INTEGER NOT NULL
+);
 `;
 
 /** SQLite store (node:sqlite, built into Node ≥ 22). All amounts are decimal strings (bigint-safe). */
@@ -225,6 +234,30 @@ export class Store {
     return (this.db.prepare("SELECT * FROM resources ORDER BY url").all() as { url: string; method: string; merchant: string; description: string | null; accepts: string; extensions: string | null; updated: number }[]).map(
       (r) => ({ ...r, accepts: JSON.parse(r.accepts), extensions: r.extensions ? JSON.parse(r.extensions) : undefined }),
     );
+  }
+
+  logVoucher(channelId: string, requestId: string, resourceHash: string, cumulative: string, at: number) {
+    this.db.prepare("INSERT INTO voucher_log (channel_id, request_id, resource_hash, cumulative, at) VALUES (?, ?, ?, ?, ?)").run(channelId.toLowerCase(), requestId, resourceHash, cumulative, at);
+  }
+
+  voucherLog(channelId?: string): import("./flight.js").VoucherLogRow[] {
+    if (channelId) return this.db.prepare("SELECT * FROM voucher_log WHERE channel_id = ? ORDER BY id").all(channelId.toLowerCase()) as import("./flight.js").VoucherLogRow[];
+    return this.db.prepare("SELECT * FROM voucher_log ORDER BY id").all() as import("./flight.js").VoucherLogRow[];
+  }
+
+  /** Voucher-log rows of a channel not yet covered by a flight record. */
+  unrecordedVouchers(channelId: string): import("./flight.js").VoucherLogRow[] {
+    const last = this.db.prepare("SELECT MAX(last_id) AS m FROM flight_records WHERE channel_id = ?").get(channelId.toLowerCase()) as { m: number | null };
+    return this.db.prepare("SELECT * FROM voucher_log WHERE channel_id = ? AND id > ? ORDER BY id").all(channelId.toLowerCase(), last?.m ?? 0) as import("./flight.js").VoucherLogRow[];
+  }
+
+  insertFlightRecord(r: { claimTx: string; channelId: string; merkleRoot: string; count: number; firstId: number; lastId: number }) {
+    this.db.prepare("INSERT OR IGNORE INTO flight_records (claim_tx, channel_id, merkle_root, count, first_id, last_id, at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(r.claimTx, r.channelId.toLowerCase(), r.merkleRoot, r.count, r.firstId, r.lastId, Math.floor(Date.now() / 1000));
+  }
+
+  flightRecords(channelId?: string): { claim_tx: string; channel_id: string; merkle_root: string; count: number; first_id: number; last_id: number; at: number }[] {
+    if (channelId) return this.db.prepare("SELECT * FROM flight_records WHERE channel_id = ? ORDER BY first_id").all(channelId.toLowerCase()) as never;
+    return this.db.prepare("SELECT * FROM flight_records ORDER BY at").all() as never;
   }
 
   bump(k: string, by = 1) {

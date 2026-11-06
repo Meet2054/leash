@@ -4,6 +4,7 @@ import {
   getAddress,
   isAddress,
   isHex,
+  keccak256,
   recoverTypedDataAddress,
   type Address,
   type Hex,
@@ -27,6 +28,7 @@ import { KeyedMutex, RateLimiter, Relayer, RelayerError } from "@leash/relayer";
 import type { ChannelRow, Store } from "./db.js";
 import type { AuditSink } from "./audit.js";
 import type { CircuitBreaker } from "./breaker.js";
+import { leafOf, merkleRoot, resourceHash } from "./flight.js";
 
 export type EngineConfig = {
   chainId: number;
@@ -192,7 +194,12 @@ export class ChannelEngine {
       const v = await this.verify(payload, req, false);
       if (!v.isValid) return fail(v.invalidReason ?? "invalid", v.invalidMessage);
       this.ensureRow(p);
-      this.store.tx(() => this.store.acceptVoucher(p.channelId, p.cumulativeAmount, p.voucherSig));
+      this.store.tx(() => {
+        this.store.acceptVoucher(p.channelId, p.cumulativeAmount, p.voucherSig);
+        // F4 flight recorder: one leaf per accepted payment (hashes only)
+        const url = (payload as { resource?: { url?: string } }).resource?.url;
+        this.store.logVoucher(p.channelId, keccak256(p.voucherSig), resourceHash(url), p.cumulativeAmount, nowSec());
+      });
       return {
         success: true,
         transaction: "",
@@ -425,6 +432,20 @@ export class ChannelEngine {
       });
     });
     this.cache.delete(`ch:${snap.id}`);
+    // F4: Merkle root over this channel's payments since the last claim → HCS
+    const rows = this.store.unrecordedVouchers(snap.id);
+    if (rows.length) {
+      const root = merkleRoot(rows.map(leafOf));
+      this.store.insertFlightRecord({ claimTx: sent.hash, channelId: snap.id, merkleRoot: root, count: rows.length, firstId: rows[0].id, lastId: rows[rows.length - 1].id });
+      await this.audit.publish({
+        kind: "FlightRecord",
+        chainId: this.cfg.chainId,
+        vault: getAddress(snap.vault),
+        channelId: snap.id as Hex,
+        tx: sent.hash,
+        data: { merkleRoot: root, count: rows.length, firstId: rows[0].id, lastId: rows[rows.length - 1].id },
+      });
+    }
     await this.audit.publish({
       kind: "Claimed",
       chainId: this.cfg.chainId,

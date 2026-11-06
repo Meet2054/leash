@@ -12,7 +12,8 @@
   "scripts": {
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -p .",
-    "start": "tsx --env-file=../../.env src/server.ts"
+    "start": "tsx --env-file=../../.env src/server.ts",
+    "verify-log": "tsx --env-file=../../.env src/verify-log.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.6",

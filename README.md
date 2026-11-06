@@ -116,6 +116,13 @@ Tightening is safe to automate, so Leash does it automatically.
 - The breaker is enforced by the facilitator (off-chain), with HCS as the audit anchor. The onchain caps still bound the worst case if the facilitator were bypassed.
 - Code: [`packages/facilitator/src/breaker.ts`](packages/facilitator/src/breaker.ts); 7 vitest cases.
 
+## Agent flight recorder (tamper-evident activity log)
+- **What's logged:** every accepted payment becomes a leaf `keccak(requestId, keccak(resourceUrl), cumulative, timestamp)`.
+- **What's published:** every claim publishes the **Merkle root** of that channel's new leaves to the HCS audit topic. Only hashes leave the facilitator, never content.
+- **How to check:** `pnpm verify-log [channelId]` recomputes every root from the facilitator's SQLite and compares it with Hedera's mirror node. Editing or deleting a single stored row breaks it (5 vitest cases).
+- **Live:** 3/3 flight records match HCS topic [0.0.11329753](https://hashscan.io/testnet/topic/0.0.11329753). The first covers claim [0x158e…e2e0](https://explorer.testnet.whitechain.io/tx/0x158e0058f3bd3715287f07f66fe10f2d2c6202ff97dcb393a8b9f7c58843e2e0).
+- Code: [`packages/facilitator/src/flight.ts`](packages/facilitator/src/flight.ts).
+
 ## Reorg safety
 L2s can roll back blocks, so a pay-per-request rail must survive a vanished claim without double-paying or losing merchant revenue.
 - **Why it's safe:** vouchers are **cumulative and idempotent**. The vault pays only `cumulative − claimed` and requires `cumulative > claimed`, so re-submitting the latest voucher can never pay twice.
