@@ -8,7 +8,7 @@ import type { OwnerSigner } from "@/lib/client/signer";
 import type { WasmSigner } from "@/lib/client/wasm-signer";
 import { WorldCheck, type Attempt } from "./WorldCheck";
 
-type Resource = { accepts: { payTo: string }[]; resource: string };
+type Resource = { accepts: { payTo: string; network?: string }[]; resource: string };
 
 export function Onboard(props: {
   chainId: number;
@@ -42,11 +42,12 @@ export function Onboard(props: {
     api<{ items: Resource[] }>("/api/facilitator/discovery/resources")
       .then((r) => {
         const seen = new Map<string, string>();
-        for (const i of r.items) seen.set(i.accepts[0].payTo, new URL(i.resource).pathname.slice(1));
+        // only this chain's merchants (discovery also lists Hedera endpoints, whose payTo is a 0.0.x account)
+        for (const i of r.items) if (i.accepts[0].network === `eip155:${chainId}` && isAddress(i.accepts[0].payTo)) seen.set(i.accepts[0].payTo, new URL(i.resource).pathname.slice(1));
         setMerchants([...seen].map(([address, name]) => ({ address, name, on: true })));
       })
       .catch(() => undefined);
-  }, []);
+  }, [chainId]);
 
   const vaultAddr = attempt?.status === "APPROVED" ? attempt.vault : null;
   useEffect(() => {
