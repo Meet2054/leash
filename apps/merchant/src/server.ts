@@ -7,7 +7,9 @@ import { readFileSync } from "node:fs";
 import { serve } from "@hono/node-server";
 import { privateKeyToAccount } from "viem/accounts";
 import type { Address, Hex } from "viem";
+import { fileURLToPath } from "node:url";
 import { createMerchantApp, registerWithFacilitator, type MerchantConfig } from "./app.js";
+import { InvoiceBook } from "./invoices.js";
 
 const port = Number(process.env.MERCHANT_PORT ?? 4022);
 const publicUrl = process.env.MERCHANT_PUBLIC_URL ?? `http://localhost:${port}`;
@@ -29,6 +31,8 @@ const cfg: MerchantConfig = {
     }
   })(),
   asset: isLocal && process.env.LOCAL_TOKEN ? { asset: process.env.LOCAL_TOKEN as Address, decimals: 6, symbol: "USDT" } : undefined,
+  invoices: new InvoiceBook(process.env.MERCHANT_INVOICES_FILE ?? fileURLToPath(new URL(`../../../data/invoices-${isLocal ? 31337 : 1874}.json`, import.meta.url))),
+  adminToken: process.env.ADMIN_TOKEN,
 };
 
 // the facilitator must list leash-batch on our network before the payment middleware initializes
