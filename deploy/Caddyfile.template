@@ -1,0 +1,27 @@
+# Leash single-host routing. bootstrap.sh replaces __DOMAIN__ and installs this as /etc/caddy/Caddyfile.
+# Caddy obtains and renews the HTTPS certificate automatically (needs DNS A/AAAA for __DOMAIN__ → this host,
+# ports 80 + 443 open).
+__DOMAIN__ {
+	encode zstd gzip
+
+	# x402 facilitator + relayer API (public base URL: https://__DOMAIN__/facilitator)
+	handle_path /facilitator/* {
+		reverse_proxy 127.0.0.1:4021
+	}
+
+	# demo merchant (public base URL: https://__DOMAIN__/merchant)
+	handle_path /merchant/* {
+		# x402 headers (PAYMENT-REQUIRED / PAYMENT-SIGNATURE / PAYMENT-RESPONSE) pass through untouched;
+		# the merchant sets its own CORS expose headers
+		reverse_proxy 127.0.0.1:4022
+	}
+
+	# owner app + attestor API
+	handle {
+		reverse_proxy 127.0.0.1:3000
+	}
+
+	log {
+		output file /var/log/caddy/leash.log
+	}
+}

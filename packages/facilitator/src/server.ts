@@ -70,7 +70,7 @@ if (process.env.HEDERA_OPERATOR_KEY && !process.env.HEDERA_OPERATOR_KEY.includes
 }
 
 const app = createApp(ctx);
-serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, () => {
+serve({ fetch: app.fetch, port, hostname: process.env.BIND_HOST ?? "0.0.0.0" }, () => {
   console.log(`[facilitator] ${ctx.network} on ${publicUrl} | relayer ${ctx.relayer.address} | factory ${deployment.factory}`);
   if (externalLog) console.log(`[facilitator] audit mirror → ${JSON.stringify(externalLog.describe())}`);
 });
