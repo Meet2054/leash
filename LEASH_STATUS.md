@@ -69,7 +69,7 @@ Open blockers (HUMAN): World IdP credentials (the real World check is so far **M
 - **Hedera settles in HBAR**, not USDC. The Circle faucet's Hedera sender made no payouts for over an hour during the event. On Hedera each paid request is a separate settlement (no batching), and the mandate is enforced by our facilitator, not onchain.
 - **Agent session expiry:** the CLI session (`keys/agent-session.json`) expires 2026-11-07 00:08 IST. The demo will use a fresh web-onboarded vault and the `agent-session-demo` key.
 - **Trust points:** the attestor key and the relayer/facilitator; state lives in local SQLite. Relayer and attestor are immutable in the factory (see README Limitations).
-- **Secrets audit:** pending review item 5 (gitleaks over full history).
+- **Secrets audit (2026-11-06 09:17 IST):** `gitleaks git --log-opts=--all` (gitleaks 8.30.1) over all 37 commits (~869 KB) found **1 finding, a false positive**: rule `generic-api-key` matched `"token": "0xcedf…55a7"` in `contracts/deployments/1874.json`, the public USDT contract address. It is listed with a comment in `.gitleaksignore`, and the re-scan reports **no leaks**. `git log --all -- .env keys/` → **0 commits** (neither path was ever committed). Only `.env.example` (placeholders) is tracked. A separate check confirmed none of the real `.env`/`keys/` private keys appear anywhere in history.
 - No live hosting yet (services run on a laptop).
 
 ## 9. Decisions since last report

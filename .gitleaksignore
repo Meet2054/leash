@@ -1,0 +1,3 @@
+# gitleaks false positives (reviewed 2026-11-06)
+# public USDT contract address under the JSON key "token" in the deployment record — not a secret
+e2cb6b4592e49026af9490b70564b40fbf54d1d7:contracts/deployments/1874.json:generic-api-key:10
