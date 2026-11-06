@@ -31,6 +31,8 @@ export type LeashClientOptions = {
   sessionExpiry?: bigint;
   /** fallback if a 402 does not carry extra.facilitatorUrl */
   facilitatorUrl?: string;
+  /** partner lane key, sent as `x-api-key` to the facilitator (own rate-limit bucket) */
+  apiKey?: string;
   fetch?: typeof fetch;
   onEvent?: (e: LeashClientEvent) => void;
 };
@@ -104,7 +106,7 @@ export class LeashSchemeClient implements SchemeNetworkClient {
   private async resume(facilitatorUrl: string, merchant: Address, key: string): Promise<LocalChannel | undefined> {
     const f = this.opts.fetch ?? fetch;
     const q = new URLSearchParams({ vault: this.opts.vault, session: this.opts.session.address, merchant });
-    const res = await f(`${facilitatorUrl}/channels?${q}`);
+    const res = await f(`${facilitatorUrl}/channels?${q}`, this.opts.apiKey ? { headers: { "x-api-key": this.opts.apiKey } } : undefined);
     if (!res.ok) return undefined;
     const list = (await res.json()) as ChannelView[];
     const open = list
@@ -149,7 +151,7 @@ export class LeashSchemeClient implements SchemeNetworkClient {
     const f = this.opts.fetch ?? fetch;
     const res = await f(`${facilitatorUrl}/channels/open`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...(this.opts.apiKey ? { "x-api-key": this.opts.apiKey } : {}) },
       body: JSON.stringify(body),
     });
     if (!res.ok) throw new Error(`leash-batch: open channel failed (${res.status}): ${await res.text()}`);
