@@ -583,6 +583,81 @@ contract LeashVaultTest is LeashBase {
         vault.applyChange(c, ownerPub, pq, wa, att);
     }
 
+    // ================================================================ trust split (owner PQ key × attestor)
+
+    /// Stealing the attestor key alone moves nothing: a genuine WorldApproval without the owner's PQ signature fails.
+    function test_trustSplit_attestorAloneCannotLoosen() public {
+        address thief = makeAddr("thief");
+        MandateChange memory c = _change(Actions.WITHDRAW, abi.encode(thief, DEPOSIT));
+        (WorldApproval memory wa, bytes memory att) = _approve(c); // genuine attestor signature
+        bytes memory attestorAsPq = _sign(attestorPk, vault.mandateChangeDigest(c));
+
+        // (a) present the attestor's own key as the "owner key"
+        vm.expectRevert(LeashVault.WrongPqKey.selector);
+        vault.applyChange(c, abi.encodePacked(vm.addr(attestorPk)), attestorAsPq, wa, att);
+        // (b) present the real owner pubkey with a signature the owner never made
+        vm.expectRevert(LeashVault.BadPqSignature.selector);
+        vault.applyChange(c, ownerPub, attestorAsPq, wa, att);
+        // (c) same for vault creation: a genuine attestation cannot create a vault for someone else's PQ key
+        InitConfig memory cfg = InitConfig(keccak256(ownerPub), keccak256("victim-subject"), address(mockPq), "");
+        address predicted = factory.predictVaultFor(cfg.pqPubKeyHash, cfg.worldSubjectHash);
+        (, WorldApproval memory waInit, bytes memory attInit) = _signInit(factory, cfg, predicted);
+        bytes memory forgedInit = _sign(attestorPk, factory.initConfigDigest(cfg));
+        vm.expectRevert(LeashFactory.BadPqSignature.selector);
+        factory.createVault(cfg, ownerPub, forgedInit, waInit, attInit);
+
+        assertEq(usdt.balanceOf(thief), 0);
+        assertEq(usdt.balanceOf(address(vault)), DEPOSIT);
+    }
+
+    /// Stealing the owner's PQ key alone cannot loosen anything (every loosening action needs the attestor) …
+    function test_trustSplit_pqKeyAloneCannotLoosen() public {
+        address thief = makeAddr("thief");
+        Op[6] memory loosen = [
+            Op(Actions.WITHDRAW, abi.encode(thief, DEPOSIT)),
+            Op(Actions.ADD_SESSION, abi.encode(thief, uint64(block.timestamp + 1 days), uint128(1_000 * USDT))),
+            Op(Actions.SET_SESSION_LIMITS, abi.encode(session, uint64(block.timestamp + 30 days), uint128(1_000 * USDT))),
+            Op(Actions.SET_MERCHANT, abi.encode(thief, uint128(1_000 * USDT), uint128(1_000 * USDT))),
+            Op(Actions.ROTATE_PQ_KEY, abi.encode(keccak256("thief-key"))),
+            Op(Actions.SET_VERIFIER, abi.encode(address(usdt)))
+        ];
+        WorldApproval memory empty;
+        for (uint256 i = 0; i < loosen.length; ++i) {
+            MandateChange memory c = _change(loosen[i].action, loosen[i].data);
+            bytes memory pq = _pqSig(c); // genuine owner PQ signature
+            vm.expectRevert(LeashVault.WorldApprovalRequired.selector);
+            vault.applyChange(c, ownerPub, pq, empty, "");
+        }
+        // … and the owner key cannot mint its own approval either
+        MandateChange memory w = _change(Actions.WITHDRAW, abi.encode(thief, DEPOSIT));
+        (WorldApproval memory wa, ) = _approve(w);
+        bytes memory selfSigned = _sign(ownerPk, vault.worldApprovalDigest(wa));
+        bytes memory pqW = _pqSig(w);
+        vm.expectRevert(LeashVault.BadAttestorSig.selector);
+        vault.applyChange(w, ownerPub, pqW, wa, selfSigned);
+
+        assertEq(usdt.balanceOf(thief), 0);
+        assertEq(vault.mandateNonce(), 0);
+    }
+
+    /// … it can only tighten.
+    function test_trustSplit_pqKeyAloneCanTighten() public {
+        WorldApproval memory empty;
+        MandateChange memory lower = _change(Actions.SET_MERCHANT, abi.encode(merchant, uint128(1 * USDT), uint128(1 * USDT)));
+        vault.applyChange(lower, ownerPub, _pqSig(lower), empty, "");
+        MandateChange memory revoke = _change(Actions.REVOKE_SESSION, abi.encode(session));
+        vault.applyChange(revoke, ownerPub, _pqSig(revoke), empty, "");
+        assertEq(vault.mandateNonce(), 2);
+        assertEq(usdt.balanceOf(address(vault)), DEPOSIT); // tightening never moves funds
+    }
+
+    /// Both keys together can withdraw (the only non-voucher path for funds to leave).
+    function test_trustSplit_bothKeysCanWithdraw() public {
+        address to = makeAddr("ownerColdWallet");
+        _apply(_change(Actions.WITHDRAW, abi.encode(to, 10 * USDT)), true);
+        assertEq(usdt.balanceOf(to), 10 * USDT);
+    }
+
     // ================================================================ session self-revocation
 
     function test_revokeSessionBySig_gasless() public {
