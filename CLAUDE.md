@@ -342,6 +342,16 @@ Rules: never claim something works without a link, a test result or command outp
 
 ## 14. Project Memory (living — keep updated; newest first within each list)
 
+### Submission deadline
+- **Confirmed deadline: PENDING — the human will provide it (asked 2026-11-06 09:10 review).** Do not guess. When it lands, replace D below with the real IST time and rewrite this plan with absolute times.
+- Backward plan relative to the deadline D (priority order from the 09:10 review: real World ID → hosting → fresh demo vault):
+  - D−14h: real World IdP approval end to end recorded (needs WORLD_CLIENT_ID/SECRET); hosting provider picked, `deploy/` brought up on DOMAIN.
+  - D−10h: fresh demo vault onboarded in the web app (WASM key, demo session), funded, Scenario A/B/C rehearsed on the hosted stack.
+  - D−6h: **code freeze** (only doc/status fixes after this); final `pnpm test`, `pnpm status`, LEASH_STATUS regenerated.
+  - D−4h: record the demo video (docs/DEMO_SCRIPT.md), Whitechain 2–4 min + Hedera ≤ 5 min cuts.
+  - D−2h: repo public, README links checked, submission form filled.
+  - D: submitted, with a buffer for upload problems.
+
 ### Current state
 - Milestone: **M1 done** (forge green). **M2 gate PASS on deployed contracts** (2026-11-06): verified EthFalconVerifier on 1874 returns true for off-chain Falcon sigs over Leash digests (`contracts/test/vectors/falcon_leash.json`), false for wrong digest, ~1.58M gas. **M3 in progress**: sdk + relayer + facilitator + merchant done and green on anvil e2e (30 paid calls → 3 claims); next = run it on Whitechain with real USDT.
 - **M4**: attestor + approvals + denied path DONE with `WORLD_MODE=mock` (MOCKED World issuer); real World IdP code path written (device grant) but untested until the portal app exists (HUMAN). **M5**: owner app (5 screens) builds; **gate h6 Falcon WASM: PASS** (in-browser keys; localhost Python signer kept as alt).
