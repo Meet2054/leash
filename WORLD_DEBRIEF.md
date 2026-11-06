@@ -56,6 +56,14 @@ Code: [`apps/web/lib/server/world.ts`](apps/web/lib/server/world.ts), [`attestor
     - We switched to the authorization-code flow with a callback we serve (via a Cloudflare tunnel), clicked "No, create an account" once, and it worked first time. The second approval asked "Yes, I have an account".
     - **Ask:** document the account-linking step for the device flow, and make the token poll return a distinct error while it is waiting on it.
 
+11. **Getting testers onto the sandbox is the hardest part, and the browser simulator can't help.**
+    - The portal (and adding portal members) is Google-only, and in practice only our Workspace account was eligible. Teammates couldn't get the sandbox app through the invite flow we tried.
+    - What does work for an ordinary tester:
+      - the **public TestFlight link** from the ETHGlobal prize page (an Apple ID is enough)
+      - World's own **"Approve on another device"** link on the IdP page: copy it to a person who has a sandbox World ID
+    - The ETHGlobal page says *"We are mocking proofs now, so you don't need sandbox app anymore"* and links the World ID Simulator. But the simulator's CSP `connect-src` only allows `bridge.worldcoin.org` / `staging-bridge.worldcoin.org`. The IdP uses `sandbox.auth.world.org/bridge/v1` (deep link `worldidsandbox://verify?…&b=https://sandbox.auth.world.org/bridge/v1`), so the simulator **cannot** complete an Agent Pass login. We checked the response header on 2026-11-06.
+    - **Ask:** allow the IdP bridge in the simulator, or offer a web-based test approver for the sandbox IdP.
+
 ## Missing capability / docs
 - **An action-bound approval:** let the relying party pass an `action_hash` (or a `binding_message` that is shown to the user **and signed into the ID token**).
 - A documented **mock-proof environment** for hackathons: issuer URL, test users, what `amr`/`acr` you get.
