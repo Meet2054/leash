@@ -1,0 +1,5 @@
+#!/bin/sh
+# Launcher for the "without Leash" baseline agent wallet (stdio MCP).
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+NODE="${LEASH_NODE:-$(command -v node || echo /Users/adi-21/.local/bin/node)}"
+exec "$NODE" "$DIR/node_modules/tsx/dist/cli.mjs" "$DIR/src/plain.ts" "$@"
