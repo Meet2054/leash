@@ -1,10 +1,16 @@
 "use client";
+/**
+ * The World ID request panel (Figma "World ID panel", Setup · 3 Verify — waiting): green-tinted card with a
+ * countdown pill, numbered steps, the green "Open World ID" button, "Continue on another phone instead" and a
+ * waiting spinner. Polls the backend until the human finishes (or doesn't). Also used by Requests.
+ */
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { CheckCircle2, ExternalLink, Hourglass, Loader2, RotateCcw, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronRight, Clock, ExternalLink, Hourglass, Loader2, RotateCcw, XCircle } from "lucide-react";
 import { api } from "@/lib/client/api";
 import { Button } from "@/components/ui/button";
 import { Pill } from "./leash/kit";
+import { cn } from "@/lib/utils";
 
 export type Attempt = {
   attemptId: string;
@@ -28,10 +34,22 @@ export type Attempt = {
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
+/** Tinted panel shell (r16, hairline border). */
+function Panel({ tint, className, children }: { tint: string; className?: string; children: React.ReactNode }) {
+  return (
+    <div className={cn("space-y-3.5 rounded-[16px] p-[18px] ring-1 ring-inset ring-[#222222]/12", className)} style={{ background: tint }}>
+      {children}
+    </div>
+  );
+}
+
+const B = ({ children }: { children: React.ReactNode }) => <span className="font-semibold text-[#1f2230]">{children}</span>;
+
 /** Shows the World ID request and polls the backend until the human finishes (or doesn't). */
 export function WorldCheck({ attemptId, onDone, onRetry }: { attemptId: string; onDone: (a: Attempt) => void; onRetry?: () => void }) {
   const [a, setA] = useState<Attempt>();
   const [left, setLeft] = useState(0);
+  const [otherPhone, setOtherPhone] = useState(false);
   useEffect(() => {
     let stop = false;
     const tick = async () => {
@@ -58,79 +76,101 @@ export function WorldCheck({ attemptId, onDone, onRetry }: { attemptId: string; 
 
   if (!a)
     return (
-      <div className="well flex items-center gap-2 p-4 text-[0.85rem] text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" /> Preparing your World ID request…
-      </div>
+      <Panel tint="#f0fff1">
+        <div className="flex items-center gap-2 text-[14px] text-addr">
+          <Loader2 className="size-4 animate-spin text-green" /> Preparing your World ID request…
+        </div>
+      </Panel>
     );
   const mocked = a.mode === "mock";
 
   if (a.status === "COOLDOWN")
     return (
-      <div className="well space-y-1.5 p-4">
-        <div className="flex items-center gap-2 text-[0.9rem] font-medium">
-          <Hourglass className="size-4 text-[var(--warn)]" /> Verified. Safety wait: {mmss(left)}
+      <Panel tint="#fffdec">
+        <div className="flex items-center gap-2 text-[16px] font-semibold text-[#1f2230]">
+          <Hourglass className="size-[18px] text-amber" /> Verified. Safety wait: <span className="num font-mono text-amber">{mmss(left)}</span>
         </div>
-        <p className="text-[0.8rem] leading-relaxed text-muted-foreground">Large withdrawals wait a few minutes before they can be signed. Press Deny, or freeze your agent, to cancel it.</p>
-      </div>
+        <p className="text-[14px] leading-5 text-[#4a4f5e]">Large withdrawals wait a few minutes before they can be signed. Press Deny, or freeze your agent, to cancel it.</p>
+      </Panel>
     );
 
   if (a.status !== "PENDING") {
     const ok = a.status === "APPROVED";
     return (
-      <div className="well flex items-start gap-3 p-4">
-        {ok ? <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-[var(--ok)]" /> : <XCircle className="mt-0.5 size-5 shrink-0 text-[var(--bad)]" />}
-        <div className="min-w-0 space-y-1">
-          <div className="text-[0.9rem] font-medium">{ok ? "You're verified" : a.status === "EXPIRED" ? "The request expired" : "Not verified"}</div>
-          <div className="text-[0.8rem] text-muted-foreground">{ok ? "World ID confirmed it's you, for this exact change." : `${a.reason ?? ""}. Nothing was signed.`}</div>
-          {!ok && onRetry && (
-            <Button variant="secondary" size="sm" className="mt-1" onClick={onRetry}>
-              <RotateCcw /> Try again
-            </Button>
-          )}
+      <Panel tint={ok ? "#f0fff1" : "#fff0f4"}>
+        <div className="flex items-start gap-3">
+          {ok ? <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-green" /> : <XCircle className="mt-0.5 size-5 shrink-0 text-red" />}
+          <div className="min-w-0 space-y-1">
+            <div className="text-[16px] font-semibold text-[#1f2230]">{ok ? "You're verified" : a.status === "EXPIRED" ? "The request expired" : "Not verified"}</div>
+            <div className="text-[14px] leading-5 text-[#4a4f5e]">{ok ? "World ID confirmed it's you, for this exact change." : `${a.reason ?? ""}. Nothing was signed.`}</div>
+            {!ok && onRetry && (
+              <Button variant="secondary" size="sm" className="mt-2" onClick={onRetry}>
+                <RotateCcw /> Try again
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+      </Panel>
     );
   }
 
   return (
-    <div className="well space-y-4 p-4">
-      <div className="flex items-center justify-between">
-        <div className="text-[0.9rem] font-medium">Verify with World ID</div>
-        {mocked ? <Pill tone="warn">MOCKED issuer</Pill> : <Pill>{mmss(left)} left</Pill>}
+    <Panel tint="#f0fff1">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-[16px] font-semibold leading-[22px] tracking-[-0.005em] text-[#1f2230]">Verify with World ID</div>
+        {mocked ? (
+          <Pill tone="warn">MOCKED issuer</Pill>
+        ) : (
+          <span className="inline-flex h-[30px] items-center gap-1.5 rounded-full bg-white px-2.5 text-[14px] font-semibold text-green">
+            <Clock className="size-[13px] stroke-[2.2]" />
+            <span className="num">{mmss(left)} left</span>
+          </span>
+        )}
       </div>
-      <ol className="space-y-2 text-[0.84rem] leading-relaxed text-muted-foreground">
+      <ol className="space-y-2.5 text-[14px] leading-5 tracking-[-0.005em] text-[#1f2230]/80">
         <li>
-          <span className="text-foreground">1.</span> Tap <span className="text-foreground">Open World ID</span> below, then <span className="text-foreground">Continue with World ID</span>.
+          <B>1.</B> Tap <B>Open World ID</B> below, then <B>Continue with World ID</B>.
         </li>
         <li>
-          <span className="text-foreground">2.</span> {mocked ? "Approve on the mock page." : <>World shows a QR code. <span className="text-foreground">Scan it with the World ID app</span> on the phone that holds the World ID, and approve. If the app is on this phone, tap <span className="text-foreground">Open World ID app</span> instead.</>}
+          <B>2.</B>{" "}
+          {mocked ? (
+            "Approve on the mock page."
+          ) : (
+            <>
+              World shows a QR code. <B>Scan it with the World ID app</B> on the phone that holds the World ID, and approve. If the app is on this phone, tap <B>Open World ID app</B> instead.
+            </>
+          )}
         </li>
         {!mocked && (
           <li>
-            <span className="text-foreground">3.</span> Asked <span className="text-foreground">&ldquo;Are you a returning user?&rdquo;</span> Choose <span className="text-foreground">No, create an account</span> the first time with that World ID, <span className="text-foreground">Yes</span> after that.
+            <B>3.</B> Asked <B>&ldquo;Are you a returning user?&rdquo;</B> Choose <B>No, create an account</B> the first time with that World ID, <B>Yes</B> after that.
           </li>
         )}
       </ol>
-      <Button size="lg" className="w-full" asChild>
+      <Button variant="green" className="w-full" asChild>
         <a href={a.verificationUriComplete ?? "#"} target="_blank" rel="noreferrer">
           {mocked ? "Open mock World check" : "Open World ID"} <ExternalLink />
         </a>
       </Button>
       {a.verificationUriComplete && (
-        <details className="text-[0.75rem] text-muted-foreground">
-          <summary className="cursor-pointer hover:text-foreground">Continue on another phone instead</summary>
-          <div className="mt-2 flex items-center gap-3">
-            <div className="shrink-0 rounded-xl bg-white p-2">
-              <QRCodeSVG value={a.verificationUriComplete} size={112} />
+        <div>
+          <button type="button" className="flex items-center gap-1.5 text-[14px] leading-5 text-green" onClick={() => setOtherPhone(!otherPhone)} aria-expanded={otherPhone}>
+            {otherPhone ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />} Continue on another phone instead
+          </button>
+          {otherPhone && (
+            <div className="mt-2.5 flex items-center gap-3 rounded-[14px] bg-white p-2.5">
+              <div className="shrink-0 rounded-[10px] bg-white p-1">
+                <QRCodeSVG value={a.verificationUriComplete} size={112} />
+              </div>
+              <span className="text-[13px] leading-[18px] text-[#4a4f5e]">Scan with that phone&apos;s camera (not the World ID app). It opens this same request there; this page finishes by itself.</span>
             </div>
-            <span>Scan with that phone&apos;s camera (not the World ID app). It opens this same request there; this page finishes by itself.</span>
-          </div>
-        </details>
+          )}
+        </div>
       )}
-      <div className="flex items-center justify-center gap-2 text-[0.75rem] text-muted-foreground">
-        <Loader2 className="size-3.5 animate-spin" /> Waiting for your approval…
+      <div className="flex items-center justify-center gap-2 text-[14px] leading-5 text-addr">
+        <Loader2 className="size-4 animate-spin" /> Waiting for your approval…
       </div>
-      {mocked && <p className="text-[0.72rem] text-muted-foreground">Offline demo mode: a local issuer stands in for World ID and is validated exactly like World&apos;s.</p>}
-    </div>
+      {mocked && <p className="text-[12px] leading-4 text-addr">Offline demo mode: a local issuer stands in for World ID and is validated exactly like World&apos;s.</p>}
+    </Panel>
   );
 }
