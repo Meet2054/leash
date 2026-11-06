@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@leash/sdk": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.2",
     "jose": "6.2.13",

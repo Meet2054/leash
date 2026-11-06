@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { getAddress, isAddress } from "viem";
 import { Activity as ActivityIcon, BarChart3, Inbox, KeyRound, Settings2, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { api, short, usePoll } from "@/lib/client/api";
@@ -11,7 +12,7 @@ import { Approvals } from "@/components/Approvals";
 import { Activity } from "@/components/Activity";
 import { Stats } from "@/components/Stats";
 import { PqLedger } from "@/components/PqLedger";
-import { Empty, Pill } from "@/components/leash/kit";
+import { Empty } from "@/components/leash/kit";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -128,7 +129,12 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            {cfg && <Pill tone={cfg.worldMode === "mock" ? "warn" : "neutral"}>{cfg.worldMode === "mock" ? "World MOCKED" : "World ID"}</Pill>}
+            <Link href="/lab" className="rounded-full bg-primary px-3 py-1.5 text-[0.75rem] font-semibold text-primary-foreground">
+              Attack lab
+            </Link>
+            <Link href="/docs" className="rounded-full bg-muted px-3 py-1.5 text-[0.75rem] font-medium text-foreground">
+              Docs
+            </Link>
             <Dialog>
               <DialogTrigger asChild>
                 <Button variant="ghost" size="icon" aria-label="Settings">
