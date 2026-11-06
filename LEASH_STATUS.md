@@ -29,7 +29,7 @@ Open blockers (HUMAN): World IdP credentials (the real World check is so far **M
 
 ## 5. Tests
 - forge: **75/75** passed (LeashVaultTest 63 incl. 4 new `test_trustSplit_*`, EthFalconTest 8, FalconE2ETest 3, Eip712VectorsTest 1). No failures.
-- vitest: 36/36 passed (sdk 10, relayer 10, facilitator 12 = e2e 5 + breaker 7, web WASM-Falcon 4). No failures. `packages/hedera` has no unit tests yet (exercised live by `pnpm agent h`).
+- vitest: 37/37 passed (sdk 10, relayer 10, facilitator 13 = e2e 6 + breaker 7, web WASM-Falcon 4). No failures. `packages/hedera` has no unit tests yet (exercised live by `pnpm agent h`).
 - Gas: openChannel 164,512 · claim ~101k avg onchain (≤ 93,360 in forge) · applyChange (real Falcon, loosening) 1,651,264 onchain · createVault (real Falcon) 1,898,270 onchain
 
 ## 6. Metrics
@@ -104,7 +104,7 @@ bdc81d8 fix(facilitator,sdk): one rate-limit token per paid request; resync clie
 |---|---|---|---|
 | F1 PQ Ledger + Q-Day drill | ✅ done (rotation's World approval **MOCKED**) | PQ Ledger: 4 PQ-verified txs (~1.56M verify gas, 82–97% of tx gas); rotation https://explorer.testnet.whitechain.io/tx/0x1c4fc9b384bad46fdf5d319f62af0011fecf52da918ada3d2b51f3844279a784 · new-key tightening https://explorer.testnet.whitechain.io/tx/0x8543b2c0be8a95ff9a68ee32ed0c811218f5e4d07ed51061db6c51761f8f113e · retired key → `WrongPqKey` (simulated) | forge `test_rotatePqKey_oldKeyStopsWorking` |
 | F2 circuit breaker (Scenario D) | ✅ done (facilitator-enforced) | Scenario D live: 20 workers cut off after 271 ms (velocity 151/10 s); HCS https://hashscan.io/testnet/topic/0.0.11329753 #11 `CircuitTripped`; Freeze all in the app + `pnpm owner freeze` | vitest 7 (breaker) |
-| F3 reorg-safe settlement | ⏳ | — | — |
+| F3 reorg-safe settlement | ✅ done | batcher reconciles recent claims vs chain, rolls back + resyncs nonce + re-claims latest voucher; `ClaimReorged` audit event | vitest e2e "F3 reorg safety" (evm_snapshot/evm_revert) |
 | F4 agent flight recorder | ⏳ | — | — |
 | F5 one human, one budget | P3 | — | — |
 | F6 never-callable-by-session list | P3 (partly covered: `test_wrongPqPubKey_reverts_agentCannotChangeOwnMandate`, trust-split tests) | — | — |

@@ -14,7 +14,7 @@ import {
   leashVaultAbi,
   type LeashSession,
 } from "@leash/sdk";
-import { ANVIL_KEYS, freePort, startAnvil, type Anvil } from "@leash/relayer";
+import { ANVIL_KEYS, freePort, rpc, startAnvil, type Anvil } from "@leash/relayer";
 import { createMerchantApp, registerWithFacilitator } from "@leash/merchant";
 import { createApp, createContext, type FacilitatorContext } from "../src/index.js";
 import { anvilChain, deployLocal, mockUsdtAbi, type LocalDeployment } from "../src/devnet.js";
@@ -207,6 +207,29 @@ describe("end to end on anvil: agent pays 30 requests, batcher claims", () => {
     const { fetch: thiefFetch } = wrapFetchWithLeash(fetch, { session: thief, vault, networks: ["eip155:31337"], channelAmount: () => 2_000_000n });
     await expect(thiefFetch(`${merUrl}/quote`)).rejects.toThrow(/open channel failed|UnknownSession/);
   }, 30_000);
+
+  it("F3 reorg safety: a rolled-back claim is reconciled and re-claimed exactly once", async () => {
+    const { fetch: paidFetch } = wrapFetchWithLeash(fetch, { session, vault, networks: ["eip155:31337"], channelAmount: () => 2_000_000n });
+    for (let i = 0; i < 5; i++) expect((await paidFetch(`${merUrl}/translate`)).status).toBe(200); // 5 × 0.02 USDT
+    const bal = () => pub.readContract({ address: dep.token, abi: mockUsdtAbi, functionName: "balanceOf", args: [merchants.translate] });
+    const before = await bal();
+    const snap = await rpc<string>(anvil.url, "evm_snapshot");
+    const first = await ctx.engine.runBatch(true);
+    expect(first.length).toBeGreaterThanOrEqual(1);
+    const paidOnce = (await bal()) - before;
+    expect(paidOnce).toBe(100_000n - 1000n); // 0.10 USDT minus the 0.001 relayer fee
+
+    await rpc(anvil.url, "evm_revert", [snap]); // the block with the claim is rolled back (simulated L2 reorg)
+    expect(await bal()).toBe(before);
+
+    const second = await ctx.engine.runBatch(true); // reconcile → resync nonce → claim the latest voucher again
+    expect(second.length).toBeGreaterThanOrEqual(1);
+    expect((await bal()) - before).toBe(paidOnce); // paid exactly once, correct total
+    expect(ctx.store.events(50, "ClaimReorged").length).toBeGreaterThanOrEqual(1);
+
+    expect(await ctx.engine.runBatch(true)).toEqual([]); // idempotent: nothing left to claim
+    expect((await bal()) - before).toBe(paidOnce);
+  }, 60_000);
 
   it("after the owner revokes the session, new vouchers are refused", async () => {
     const owner = privateKeyToAccount(ownerKey);

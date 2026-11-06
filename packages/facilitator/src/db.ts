@@ -170,6 +170,17 @@ export class Store {
     return this.db.prepare("SELECT * FROM claims ORDER BY at DESC LIMIT ?").all(limit) as ClaimRow[];
   }
 
+  /** Claims submitted in the last `sinceSec` seconds (candidates for reorg reconciliation). */
+  recentClaims(sinceSec: number): ClaimRow[] {
+    return this.db.prepare("SELECT * FROM claims WHERE at >= ? ORDER BY at DESC").all(Math.floor(Date.now() / 1000) - sinceSec) as ClaimRow[];
+  }
+
+  /** A claim tx was rolled back: forget it and put the channel back to the onchain truth. */
+  rollbackClaim(tx: string, channelId: string, onchainClaimed: string) {
+    this.db.prepare("DELETE FROM claims WHERE tx = ?").run(tx);
+    this.db.prepare("UPDATE channels SET claimed_onchain = ?, status = 'open' WHERE id = ?").run(onchainClaimed, channelId.toLowerCase());
+  }
+
   claimTotals(): { count: number; calldataBytes: number; delta: bigint; fee: bigint; costWei: bigint } {
     const rows = this.db.prepare("SELECT delta, fee, calldata_bytes, cost_wei FROM claims").all() as Pick<ClaimRow, "delta" | "fee" | "calldata_bytes" | "cost_wei">[];
     return rows.reduce(

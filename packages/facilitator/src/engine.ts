@@ -316,12 +316,44 @@ export class ChannelEngine {
 
   // ------------------------------------------------------------------ batcher
 
+  /**
+   * F3 reorg safety: if a recent claim tx is no longer reflected onchain (L2 reorg / rollback), roll our
+   * bookkeeping back to the chain's truth and resync the relayer nonce. The next batch then claims the
+   * latest cumulative voucher again. Cumulative vouchers are idempotent and the vault enforces
+   * `cumulative > claimed`, so the merchant is paid exactly once, for the right total.
+   */
+  async reconcileClaims(sinceSec = 3600): Promise<number> {
+    let rolledBack = 0;
+    for (const cl of this.store.recentClaims(sinceSec)) {
+      const row = this.store.channel(cl.channel_id);
+      if (!row) continue;
+      const onchain = await this.readChannel(getAddress(row.vault), row.id as Hex, true);
+      if (onchain.claimed >= BigInt(cl.cumulative)) continue; // still there
+      const receipt = await this.client.getTransactionReceipt({ hash: cl.tx as Hex }).catch(() => undefined);
+      if (receipt && receipt.status === "success") continue; // mined; the read was stale
+      this.store.rollbackClaim(cl.tx, row.id, onchain.claimed.toString());
+      rolledBack++;
+      await this.audit.publish({
+        kind: "ClaimReorged",
+        chainId: this.cfg.chainId,
+        vault: getAddress(row.vault),
+        channelId: row.id as Hex,
+        amount: cl.delta,
+        tx: cl.tx,
+        data: { onchainClaimed: onchain.claimed.toString(), cumulative: cl.cumulative },
+      });
+    }
+    if (rolledBack) await this.relayer.resyncNonce();
+    return rolledBack;
+  }
+
   /** One batching pass. Returns the claim tx hashes it sent. */
   async runBatch(force = false): Promise<Hex[]> {
     if (this.batching) return [];
     this.batching = true;
     const sent: Hex[] = [];
     try {
+      await this.reconcileClaims();
       const now = nowSec();
       for (const row of this.store.openChannelsWithUnclaimed()) {
         const unclaimed = BigInt(row.last_accepted) - BigInt(row.claimed_onchain);

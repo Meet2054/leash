@@ -116,6 +116,16 @@ Tightening is safe to automate, so Leash does it automatically.
 - The breaker is enforced by the facilitator (off-chain), with HCS as the audit anchor. The onchain caps still bound the worst case if the facilitator were bypassed.
 - Code: [`packages/facilitator/src/breaker.ts`](packages/facilitator/src/breaker.ts); 7 vitest cases.
 
+## Reorg safety
+L2s can roll back blocks, so a pay-per-request rail must survive a vanished claim without double-paying or losing merchant revenue.
+- **Why it's safe:** vouchers are **cumulative and idempotent**. The vault pays only `cumulative − claimed` and requires `cumulative > claimed`, so re-submitting the latest voucher can never pay twice.
+- **What the facilitator does:** before every batch it reconciles recent claims against the chain. If a claim tx is gone, it rolls its bookkeeping back to the onchain `claimed`, resyncs the relayer nonce, logs `ClaimReorged` (SQLite + HCS), and claims the latest voucher again.
+- **Proven on anvil** with `evm_snapshot` / `evm_revert` ([`packages/facilitator/test/e2e.test.ts`](packages/facilitator/test/e2e.test.ts), "F3 reorg safety"):
+  1. claim → the merchant receives 0.099 USDT
+  2. rollback → the merchant is back to the previous balance
+  3. reconcile + re-claim → the merchant receives 0.099 USDT once
+  4. another batch → nothing more to claim
+
 ## Data math
 Workload: 10,000 agents × 1 paid request per minute = 14.4M requests/day. Counting signature bytes only:
 

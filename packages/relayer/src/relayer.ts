@@ -224,6 +224,11 @@ export class Relayer {
     }
   }
 
+  /** Re-read the pending nonce from the chain (after a reorg or an external tx from this key). */
+  async resyncNonce() {
+    await this.sendLock.run(() => this.syncNonce());
+  }
+
   private async syncNonce() {
     this.nextNonce = await this.publicClient.getTransactionCount({ address: this.address, blockTag: "pending" });
   }
