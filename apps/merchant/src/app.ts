@@ -171,10 +171,22 @@ export function createMerchantApp(cfg: MerchantConfig) {
     let claims: { tx: string; explorerUrl: string; amountUsdt: string }[] = [];
     if (inv.paid?.channelId) {
       try {
-        const ev = (await (await fetch(`${cfg.facilitatorUrl}/events?kind=Claimed&limit=500`, { signal: AbortSignal.timeout(3000) })).json()) as { channel_id: string; tx: string; amount: string }[];
-        claims = ev
-          .filter((e) => e.channel_id?.toLowerCase() === inv.paid!.channelId!.toLowerCase())
-          .map((e) => ({ tx: e.tx, explorerUrl: `https://explorer.testnet.whitechain.io/tx/${e.tx}`, amountUsdt: formatUnits(BigInt(e.amount), 6) }));
+        const ev = (await (await fetch(`${cfg.facilitatorUrl}/events?kind=Claimed&limit=500`, { signal: AbortSignal.timeout(3000) })).json()) as { channel_id: string; tx: string; amount: string; data?: string }[];
+        // a channel carries several payments (cumulative vouchers); the claim that settled THIS invoice is the
+        // first one whose cumulative total reaches the cumulative the invoice was paid at
+        const paidAt = BigInt(inv.paid.cumulative ?? "0");
+        const cum = (e: { data?: string }) => {
+          try {
+            return BigInt((JSON.parse(e.data ?? "{}") as { cumulative?: string }).cumulative ?? "0");
+          } catch {
+            return 0n;
+          }
+        };
+        const covering = ev
+          .filter((e) => e.channel_id?.toLowerCase() === inv.paid!.channelId!.toLowerCase() && cum(e) >= paidAt)
+          .sort((x, y) => (cum(x) < cum(y) ? -1 : cum(x) > cum(y) ? 1 : 0))
+          .slice(0, 1);
+        claims = covering.map((e) => ({ tx: e.tx, explorerUrl: `https://explorer.testnet.whitechain.io/tx/${e.tx}`, amountUsdt: formatUnits(BigInt(e.amount), 6) }));
       } catch {
         /* facilitator unreachable: the receipt still shows the accepted payment */
       }
