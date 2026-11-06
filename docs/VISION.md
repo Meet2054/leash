@@ -13,7 +13,7 @@
 |---|---|---|
 | **P0** | Confirm the **submission deadline** and record it in §14 · real **World IdP** approval end to end (`WORLD_MODE=world`) · **hosting** with HTTPS (one host, persistent disk) · **fresh demo vault** via web onboarding (the CLI session expires 2026-11-07 00:08 IST) | Without these, prizes are at risk |
 | **P1** | Review fixes: regenerate `LEASH_STATUS.md` (it contradicts itself), fix the README AI-disclosure wording ("drafted at the start of the hackathon"), lead the pitch with ~584× (Falcon on both sides) then 876×, update the Hedera operator ID in the journal, run a secret scan of the full git history, and add the trust-split line and a reproducible deploy record (`deployments/1874.json`: tx hashes, solc, `evm_version`, ZKNox commit, git commit) | Credibility with judges |
-| **P2** | Features F1–F4 below (in order) | Turns "safe" into "state of the art" |
+| **P2** | Features F1–F4, then F8 (Bybit/Binance hardening), below (in order) | Turns "safe" into "state of the art" |
 | **P3** | F5, F6, F7 (promotion arena) | Only with spare time or a free teammate |
 
 Re-plan backwards from the deadline after every milestone. If less than 6 hours remain: freeze features, record the video, submit.
@@ -115,6 +115,21 @@ Re-plan backwards from the deadline after every milestone. If less than 6 hours 
 - `pnpm verify-log <channelId>` recomputes the root from the facilitator's SQLite and checks it against HCS.
 
 **Acceptance:** a verify script passes; tampering with one stored row makes it fail (vitest); an HCS link in the README.
+
+### F8 — Bybit/Binance hardening (P2, **no contract change**)
+**Why:** the two largest exchange incidents were not key thefts. Binance-style failures come from the **signing pipeline**, where valid keys sign what a compromised pipeline feeds them. Bybit-style failures come from the **UI / blind signing**, where humans approve a change they can't actually see. Leash's loosening path is a signing pipeline with a human in it, so it must bound both.
+**Build:**
+1. **Attestor policy**, enforced before any WorldApproval is signed:
+   - loosening ≤ **2× the current limit per 24 h**
+   - a **daily ceiling** on loosening
+   - **withdrawals > X USDT need a cooldown** (default 15 min) before the attestor signs
+   - every pending loosening is **published to HCS** and the owner is notified
+   - a **PQ-signed tightening during the cooldown cancels it**
+
+   vitest for each rule.
+2. **Independent decoding on the approval screen:** the attestor decodes the MandateChange behind `changeHash` server-side, independently of the client, and the screen shows both decodings side by side. **Mismatch = block.**
+3. **Owner Falcon key at rest:** encrypt the in-browser key with a **WebAuthn PRF**-derived key (passkey unlock); keep the export backup. If PRF is unsupported on the device, document it as a limitation.
+4. **README "Threat model" section:** Binance (signing pipeline, no key leak) and Bybit (UI / blind signing), and how Leash bounds each.
 
 ### F5 — One human, one budget (P3, ~2 h, facilitator-enforced; onchain later)
 **Why:** E2. A human with 50 agents should still have one ceiling.
