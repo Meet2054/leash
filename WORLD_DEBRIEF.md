@@ -14,6 +14,12 @@ Code: [`apps/web/lib/server/world.ts`](apps/web/lib/server/world.ts), [`attestor
 - Every World check so far ran with `WORLD_MODE=mock`: a local RS256 issuer that mints an ID token, which then goes through **the same validation code path** (signature, `iss`, `aud`, `exp`, `auth_time` > attempt start, `amr ∋ pop`, `jti` single use, subject equals the vault's bound World ID). It is labelled **MOCKED** in the UI, the logs and the README.
 - Live onchain result with the mocked issuer: a denied request → no transaction. An approved request → the agent's cap went 5 → 8 USDT onchain on Whitechain (tx `0x36e2e143…c1ab`).
 
+## First run against the real World IdP (sandbox), 2026-11-06
+- **13:28 IST:** credentials from the sandbox portal accepted (`device_authorization` → user code). Our backend started a vault-creation attempt bound to the InitConfig (`577a3417…`).
+- **13:40:** the sandbox World ID app on the phone showed *Verify with World ID → Human → Unique human → **Failed to share***. Most likely the sandbox identity was still being issued (World's guide warns it takes ~1 h, and the Human card can appear before it's ready).
+- **13:44:52 IST:** the World IdP returned **`access_denied` ("Authorization was denied.")** to our device-token poll. Our backend marked the attempt **DENIED**, signed **nothing**, and created **no vault**. The denial is on HCS topic 0.0.11329753, message **#23** (`ApprovalDenied`). **This is the required denied path, from the real IdP.**
+- Next: approve once the sandbox identity is issued, then record the time to first real success below.
+
 ## Time to first success
 - About **55 minutes** from opening the docs (23:30 IST) to the first approved, World-gated mandate change landing onchain (≈00:25 IST). That was with the mocked issuer.
 - Reading and understanding the IdP took about 10 minutes, because the docs are concise and the discovery document is complete.

@@ -101,15 +101,45 @@ async function cmdCreateVault() {
   const vault = await predicted(k.pubKeyHash, wsh);
   console.log(`creating vault ${vault}`);
   for (const op of ops) console.log(`  · ${describeOp(op, (a) => `${formatUnits6(a)} USDT`)}`);
+  if (flag("attest") === "world") return createVaultWithWorld(k, ops);
   const digest = initConfigDigest(CHAIN_ID, deployment.factory, cfg);
   console.log("  signing InitConfig with the owner's ETHFALCON key…");
   const pqSig = falconSign(digest);
   const wa = { vault, changeHash: digest, nonce: 0n, worldSubjectHash: wsh, authTime: nowSec(), deadline: nowSec() + 600n };
-  if (flag("attest") !== "local") throw new Error("vault creation from the CLI needs --attest local (the web app does the real World flow)");
+  if (flag("attest") !== "local") throw new Error("use --attest world (real World ID via the attestor) or --attest local (MOCKED)");
   const attestorSig = await localAttest(deployment.factory, wa);
   const r = await post<{ vault: Address; txHash: Hex; gasUsed: string }>(`${FACILITATOR_URL}/relay/createVault`, { cfg, pqPubKey: k.pubKey, pqSig, wa, attestorSig });
   saveVault({ vault: r.vault, worldSubjectHash: wsh, worldSubject: worldSubject(), pqPubKeyHash: k.pubKeyHash, createdTx: r.txHash, mockedWorld: true });
   console.log(`✔ vault created by the relayer (gas ${r.gasUsed}): ${tx(r.txHash)}\n  saved ${vaultRecordPath()}\n  → send USDT to ${r.vault}`);
+}
+
+/** Real World ID onboarding through the attestor API: the World login fixes the subject and so the vault address. */
+async function createVaultWithWorld(k: { pubKey: Hex; pubKeyHash: Hex }, ops: Op[]) {
+  type Start = { attemptId: string; mode: string; userCode: string; verificationUri: string; verificationUriComplete: string; expiresAt: number };
+  const s = await web<Start>("/api/onboard/start", { pqPubKeyHash: k.pubKeyHash, initialMandate: encodeOps(ops) });
+  console.log(`\n  ┌─ World ID check (${s.mode === "mock" ? "MOCKED issuer" : "World IdP sandbox"}) ─────────────────────────`);
+  console.log(`  │ open on your phone:  ${s.verificationUriComplete}`);
+  console.log(`  │ or go to ${s.verificationUri} and enter code  ${s.userCode}`);
+  console.log(`  │ expires ${new Date(s.expiresAt * 1000).toLocaleTimeString()}`);
+  console.log("  └──────────────────────────────────────────────────────────────\n  waiting for you to verify…");
+  type Att = { status: string; reason: string | null; changeHash: Hex; vault: Address; authTime: number; initConfig: { pqPubKeyHash: Hex; worldSubjectHash: Hex; verifier: Address; initialMandate: Hex } | null };
+  let at: Att;
+  for (;;) {
+    at = await web<Att>(`/api/world/attempts/${s.attemptId}`);
+    if (at.status !== "PENDING") break;
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+  if (at.status !== "APPROVED" || !at.initConfig) {
+    console.log(`  ✋ World check ${at.status}: ${at.reason} — nothing was signed, no vault was created`);
+    return;
+  }
+  console.log(`  ✓ World ID verified (auth_time ${new Date(at.authTime * 1000).toLocaleTimeString()}); subject bound: ${at.initConfig.worldSubjectHash}`);
+  const digest = initConfigDigest(CHAIN_ID, deployment.factory, at.initConfig);
+  if (digest.toLowerCase() !== at.changeHash.toLowerCase()) throw new Error("InitConfig hash mismatch — refusing to sign");
+  console.log(`  signing InitConfig with the owner's ETHFALCON key…`);
+  const r = await web<{ vault: Address; txHash: Hex; gasUsed: string; mocked: boolean }>(`/api/onboard/${s.attemptId}/create`, { pqPubKey: k.pubKey, pqSig: falconSign(digest) });
+  saveVault({ vault: r.vault, worldSubjectHash: at.initConfig.worldSubjectHash, worldSubject: r.mocked ? "(mock issuer)" : "(World IdP sandbox, pairwise sub)", pqPubKeyHash: k.pubKeyHash, createdTx: r.txHash, mockedWorld: r.mocked });
+  console.log(`✔ vault created after a ${r.mocked ? "MOCKED" : "REAL"} World ID check (gas ${r.gasUsed}): ${tx(r.txHash)}\n  vault ${r.vault} · record ${vaultRecordPath()}`);
 }
 
 async function applyChange(op: Op, attest?: string) {

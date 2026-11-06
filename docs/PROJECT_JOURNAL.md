@@ -65,6 +65,7 @@ Track: **From Scratch** (all code written during the event; AI use disclosed; MI
 | 11-06 00:34–00:37 | **First real USDT claims**; Scenario A **300 paid calls → 10 claims**; fixed the self-throttle bug | `bdc81d8`, `44bf22f` |
 | 11-06 00:56 | Whitechain feedback, World debrief, demo script, this journal | `8d0e10a`+ |
 | 11-06 ~01:40–02:00 | Hedera: human created portal accounts (rotated once); bootstrap created the HCS topic + agent/merchant; Circle USDC faucet never delivered (first went to Arc, then the faucet stalled) | `caa3de8`, `635bedc` |
+| 11-06 13:28–13:44 | **Real World IdP (sandbox):** credentials work; first attempt → sandbox app "Failed to share" (identity likely still issuing) → IdP `access_denied` → DENIED, nothing signed, HCS #23. Real denied path captured | this commit |
 | 11-06 10:54 | Deadline confirmed: submission **2026-11-07 04:54 IST**, build cutoff **22:54 IST** (last 6 h = pitch) | `76af000` |
 | 11-06 11:15 | **F4 live:** flight recorder; 20 paid calls → 3 claims → 3 FlightRecord roots on HCS; `pnpm verify-log` 3/3 match | this commit |
 | 11-06 11:12 | **F3:** reorg-safe settlement (claim reconciliation + nonce resync), anvil rollback test green | this commit |
@@ -131,6 +132,7 @@ Money on chain: vault 17.17 USDT left; merchants received 4.75 USDT; fees 0.010 
 | 29 | Onboarding would crash on Hedera merchants | Discovery started listing Hedera endpoints (payTo `0.0.x`), and the Onboard screen fed every payTo to `getAddress` | Filter discovery by `network === eip155:<chainId>` (`e396b1c`) |
 | 30 | Q-Day step 4 printed the vault address instead of the error name | The revert decoder took the first `0x…` blob in the error message (an address) | Shared `revertName()`: viem structured data first, then every standalone 4-byte selector; `agent q --check` now prints `WrongPqKey` |
 | 31 | Journal/status timestamps written as guesses ("~11:30") were in the future | Times were estimated instead of read from the clock | Corrected from commit times. **Rule: take times from `date` or `git log`, never estimate** |
+| 32 | The real-World CLI run printed nothing while waiting | Output piped through `sed`, which buffers until the process exits, so the verification URL never showed | Read the pending attempt (URL + user code) from the attestor DB. **Lesson: never pipe an interactive/long-waiting command through a buffering filter** |
 | 23 | Agent session expiry | The CLI vault's session was created with a 24 h TTL (expires 2026-11-07 00:08 IST) | Demo: onboard a fresh vault in the web app with `AGENT_SESSION=agent-session-demo` |
 
 ---

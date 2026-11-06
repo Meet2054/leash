@@ -24,7 +24,7 @@ Open blockers (HUMAN): World IdP credentials (the real World check is so far **M
 ## 4. Live proof (most recent)
 - Whitechain USDT claim tx: https://explorer.testnet.whitechain.io/tx/0x1ab1d35e4951ed44954ee461eab6fd20568f4f50d530e3869ff126e474a18514 | Scenario A total 300 paid calls → 10 claims (up to 100 vouchers per claim) | merchants +4.75 USDT, relayer fees 0.010 USDT
 - Mandate loosening (approved) tx: https://explorer.testnet.whitechain.io/tx/0x36e2e14380f9fb673061803a10f3cc813f66cb85b5fb6b1b1e1a0ac577b6c1ab (cap 5 → 8 USDT; real Falcon signature; World check **MOCKED** issuer)
-- Denied approval attempt id + reason: `a4a047c2-47bd-4b64-89bf-c707afd930ec` — "denied by the owner" → no attestation, no tx
+- Denied approval attempt id + reason: **real World IdP (sandbox):** `577a3417-d2a7-4e1c-aed8-ea0cc73fdc76` → `access_denied` "Authorization was denied." → nothing signed, no vault created; HCS 0.0.11329753 #23 `ApprovalDenied` (13:44:52 IST). Earlier (MOCKED issuer): `a4a047c2-…` denied by the owner.
 - Hedera settled payment: https://hashscan.io/testnet/transaction/0.0.11329302@1793911532.195465156 (+ `…1533.673150092`, `…1538.419042992`); fee payer = our facilitator; **HBAR** | HCS topic: https://hashscan.io/testnet/topic/0.0.11329753 (5 messages: genesis, 3 settled, 1 refused `leash_human_approval_required`)
 
 ## 5. Tests
@@ -49,7 +49,7 @@ Open blockers (HUMAN): World IdP credentials (the real World check is so far **M
 **World**
 - [~] Official World ID Agent Pass: device-grant integration written; **only exercised with the MOCKED issuer** (needs WORLD_CLIENT_ID/SECRET)
 - [x] Full journey request → completion → backend validation → mandate loosened onchain (MOCKED issuer)
-- [x] Denied / cancelled / expired path where nothing happens
+- [x] Denied / cancelled / expired path where nothing happens (**real IdP**: attempt `577a3417…` access_denied → no vault; HCS #23)
 - [x] Validation in a secure backend; device_code and secret never reach the browser
 - [x] WORLD_DEBRIEF.md (real-IdP time-to-first-success still pending)
 

@@ -43,7 +43,7 @@ export function agentSession(name = process.env.AGENT_SESSION ?? "agent-session"
 
 /** The owner's vault record written by `owner create-vault`. */
 export type VaultRecord = { vault: Address; worldSubjectHash: Hex; worldSubject: string; pqPubKeyHash: Hex; createdTx?: Hex; mockedWorld: boolean };
-export const vaultRecordPath = () => `${ROOT}keys/vault-${CHAIN_ID}.json`;
+export const vaultRecordPath = () => process.env.VAULT_RECORD ?? `${ROOT}keys/vault-${CHAIN_ID}.json`;
 export function loadVault(): VaultRecord {
   // AGENT_VAULT points the agent at a vault created in the web app (owner key in the browser)
   if (process.env.AGENT_VAULT) {
