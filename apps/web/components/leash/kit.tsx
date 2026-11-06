@@ -88,7 +88,7 @@ export function AlertCard(props: {
             {props.icon}
           </Orb>
           <div className="min-w-0 flex-1 space-y-1.5 pt-1">
-            <div className="text-[20px] font-semibold leading-[26px] tracking-[-0.02em] text-ink">{props.title}</div>
+            <div className="text-[19px] font-semibold leading-[25px] tracking-[-0.02em] text-ink">{props.title}</div>
             {props.body && <div className="text-[16px] leading-[22px] text-body">{props.body}</div>}
           </div>
           {props.onDismiss ? (
@@ -127,7 +127,7 @@ export function SectionTitle({ children, badge, action, className }: { children:
 export function PageTitle({ title, subtitle }: { title: React.ReactNode; subtitle?: React.ReactNode }) {
   return (
     <div className="space-y-1.5 px-1 pt-1">
-      <h1 className="text-[30px] font-bold leading-9 tracking-[-0.04em] text-ink">{title}</h1>
+      <h1 className="text-[28px] font-semibold leading-[34px] tracking-[-0.035em] text-ink">{title}</h1>
       {subtitle && <p className="text-[14px] leading-5 text-body">{subtitle}</p>}
     </div>
   );

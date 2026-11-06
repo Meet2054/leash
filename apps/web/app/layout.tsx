@@ -13,14 +13,14 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
 };
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#0a0a0a" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#ffffff" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={cn("dark", sans.variable, mono.variable)}>
+    <html lang="en" className={cn(sans.variable, mono.variable)}>
       <body className="min-h-dvh font-sans antialiased">
         {children}
-        <Toaster position="top-center" theme="dark" richColors={false} />
+        <Toaster position="top-center" theme="light" richColors={false} />
       </body>
     </html>
   );

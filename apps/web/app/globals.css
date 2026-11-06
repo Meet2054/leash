@@ -206,7 +206,7 @@
   }
   .orb-gold { background: linear-gradient(135deg, #fcbf11, #a16b08); --orb-shadow: rgb(161 107 8 / 0.35); }
   .orb-red { background: linear-gradient(135deg, #fcb9d9, #930328); --orb-shadow: rgb(147 3 40 / 0.35); }
-  .orb-green { background: linear-gradient(135deg, #8ee6b0, #096c37); --orb-shadow: rgb(9 108 55 / 0.35); }
+  .orb-green { background: linear-gradient(135deg, #16c365, #096c37); --orb-shadow: rgb(9 108 55 / 0.35); }
   .orb-blue { background: linear-gradient(135deg, #8fb0ff, #0643d2); --orb-shadow: rgb(6 67 210 / 0.35); }
   /* onboarding step backgrounds (Step themes) */
   .step-blue { background: linear-gradient(180deg, #0643d2 0%, #5c84dd 100%); --sep: rgb(6 67 210 / 0.55); --sep-dot: #4a77db; --step: #0643d2; --step-bg: #eef3fe; }
