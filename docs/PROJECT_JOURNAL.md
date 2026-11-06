@@ -66,10 +66,10 @@ Track: **From Scratch** (all code written during the event; AI use disclosed; MI
 | 11-06 00:56 | Whitechain feedback, World debrief, demo script, this journal | `8d0e10a`+ |
 | 11-06 ~01:40–02:00 | Hedera: human created portal accounts (rotated once); bootstrap created the HCS topic + agent/merchant; Circle USDC faucet never delivered (first went to Arc, then the faucet stalled) | `caa3de8`, `635bedc` |
 | 11-06 10:54 | Deadline confirmed: submission **2026-11-07 04:54 IST**, build cutoff **22:54 IST** (last 6 h = pitch) | `76af000` |
-| 11-06 ~11:35 | **F3:** reorg-safe settlement (claim reconciliation + nonce resync), anvil rollback test green | this commit |
-| 11-06 ~11:15 | **F2 live:** circuit breaker; Scenario D tripped after 271 ms (20 workers); HCS #11 `CircuitTripped`; breaker reset after the test | `4fd5671` |
-| 11-06 ~11:30 | **F1 live:** PQ Ledger (4 PQ-verified txs) + Q-Day drill (rotation `0x1c4f…a784`, old key → WrongPqKey, new-key tightening `0x8543…113e`; World approval MOCKED) | `61b441f` |
-| 11-06 ~09:40 | VISION.md added (strict P0→P3); World sandbox docs re-read: attestor matches "Human checkpoints"; now pins the linked `sub`; developer MCP path documented; no Agent Pass workshop exists (only IDKit's) | `426d004`+ |
+| 11-06 11:12 | **F3:** reorg-safe settlement (claim reconciliation + nonce resync), anvil rollback test green | this commit |
+| 11-06 11:11 | **F2 live:** circuit breaker; Scenario D tripped after 271 ms (20 workers); HCS #11 `CircuitTripped`; breaker reset after the test | `4fd5671` |
+| 11-06 10:58 | **F1 live:** PQ Ledger (4 PQ-verified txs) + Q-Day drill (rotation `0x1c4f…a784`, old key → WrongPqKey, new-key tightening `0x8543…113e`; World approval MOCKED) | `61b441f` |
+| 11-06 10:48 | VISION.md added (strict P0→P3); World sandbox docs re-read: attestor matches "Human checkpoints"; now pins the linked `sub`; developer MCP path documented; no Agent Pass workshop exists (only IDKit's) | `426d004`+ |
 | 11-06 09:10–09:30 | Review round: deadline placeholder, LEASH_STATUS regenerated, data math leads with 584×, gitleaks clean, deploy kit (Caddy + pm2), trust-split tests (forge 75/75), reproducible deploy record (bytecode exact match) | `b17cd4d`…`e396b1c` |
 | 11-06 ~02:12 | **Hedera live (HBAR fallback):** 3 x402 payments settled through our facilitator (fee payer), the 6 HBAR call was refused (human approval required), 5 HCS messages | this commit |
 
@@ -129,6 +129,7 @@ Money on chain: vault 17.17 USDT left; merchants received 4.75 USDT; fees 0.010 
 | 28 | Journal edit hit the wrong table row | The script changed the first line starting `\| 5 \|` (failure #5) instead of human-ask #5 in §11 | Fixed in a follow-up commit (`441f590`). Lesson: match tables by a unique anchor, not a row number |
 | 29 | Onboarding would crash on Hedera merchants | Discovery started listing Hedera endpoints (payTo `0.0.x`), and the Onboard screen fed every payTo to `getAddress` | Filter discovery by `network === eip155:<chainId>` (`e396b1c`) |
 | 30 | Q-Day step 4 printed the vault address instead of the error name | The revert decoder took the first `0x…` blob in the error message (an address) | Shared `revertName()`: viem structured data first, then every standalone 4-byte selector; `agent q --check` now prints `WrongPqKey` |
+| 31 | Journal/status timestamps written as guesses ("~11:30") were in the future | Times were estimated instead of read from the clock | Corrected from commit times. **Rule: take times from `date` or `git log`, never estimate** |
 | 23 | Agent session expiry | The CLI vault's session was created with a 24 h TTL (expires 2026-11-07 00:08 IST) | Demo: onboard a fresh vault in the web app with `AGENT_SESSION=agent-session-demo` |
 
 ---

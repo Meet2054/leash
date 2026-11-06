@@ -1,4 +1,4 @@
-# LEASH_STATUS — 2026-11-06T11:35+05:30 IST — milestone M8 (in progress: docs + deploy; M7 done with HBAR; World real-IdP run pending)
+# LEASH_STATUS — 2026-11-06T11:12+05:30 IST — milestone M8 (in progress: docs + deploy; M7 done with HBAR; World real-IdP run pending)
 
 ## 1. Summary (3 lines max)
 Whitechain is live and verified: 300 x402 payments settled in 10 USDT claims, and Falcon-gated vault creation and cap raises are onchain. Hedera is live: 3 x402 `exact` payments settled through our facilitator (fee payer), one refusal above the approval threshold, and an HCS audit log. Settlement there is in **HBAR**, because the Circle USDC faucet stalled.
