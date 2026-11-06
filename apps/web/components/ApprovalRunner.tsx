@@ -4,7 +4,7 @@ import { getAddress, type Hex } from "viem";
 import { CheckCircle2, Loader2, ScanFace, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { canonicalChange, mandateChangeDigest } from "@leash/sdk";
-import { api } from "@/lib/client/api";
+import { api, friendlyPolicy } from "@/lib/client/api";
 import type { OwnerSigner } from "@/lib/client/signer";
 import { Button } from "@/components/ui/button";
 import { WorldCheck, type Attempt } from "./WorldCheck";
@@ -49,7 +49,7 @@ export function ApprovalRunner({ approvalId, vault, chainId, signer, onDone }: {
       setStep("world");
     } catch (e) {
       setStep("failed");
-      setMsg(e instanceof Error ? e.message.replace(/^blocked by attestor policy: /, "Blocked by the safety policy: ") : String(e));
+      setMsg(friendlyPolicy(e instanceof Error ? e.message : String(e)));
       onDone?.();
     }
   };

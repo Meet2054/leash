@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Bot, Inbox, UserRound } from "lucide-react";
 import { toast } from "sonner";
-import { api, short, usePoll } from "@/lib/client/api";
+import { api, friendlyPolicy, short, usePoll } from "@/lib/client/api";
 import type { OwnerSigner } from "@/lib/client/signer";
 import { Button } from "@/components/ui/button";
 import { ApprovalRunner } from "./ApprovalRunner";
@@ -72,7 +72,7 @@ export function Approvals({ vault, chainId, signer }: { vault: string; chainId: 
                 <span className="text-muted-foreground">Reason given: </span>&ldquo;{a.reason}&rdquo;
               </div>
             )}
-            {a.statusReason && a.status !== "PENDING" && <div className="text-[0.75rem] text-muted-foreground">{a.statusReason.replace(/^attestor policy: /, "Safety policy: ")}</div>}
+            {a.statusReason && a.status !== "PENDING" && open !== a.id && <div className="text-[0.78rem] leading-relaxed text-muted-foreground">{friendlyPolicy(a.statusReason)}</div>}
             {a.txHash && <TxLink hash={a.txHash} />}
             {a.status === "PENDING" && open !== a.id && (
               <div className="grid grid-cols-2 gap-2">
@@ -87,9 +87,11 @@ export function Approvals({ vault, chainId, signer }: { vault: string; chainId: 
             {open === a.id && (
               <div className="space-y-2">
                 <ApprovalRunner approvalId={a.id} vault={vault} chainId={chainId} signer={signer} onDone={refresh} />
-                <Button variant="ghost" className="w-full text-muted-foreground" onClick={() => deny(a.id)}>
-                  Deny instead
-                </Button>
+                {(a.status === "PENDING" || a.status === "APPROVING") && (
+                  <Button variant="ghost" className="w-full text-muted-foreground" onClick={() => deny(a.id)}>
+                    Deny instead
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>

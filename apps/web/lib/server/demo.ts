@@ -30,6 +30,24 @@ export async function demoSessionState(vault: Address) {
 }
 
 const busy = new Map<string, number>();
+
+/** Turn a Leash/x402 refusal into one plain sentence (the raw reason stays in parentheses). */
+export function friendlyRefusal(raw: string): string {
+  const m = raw.match(/simulation_reverted: (\w+)/)?.[1] ?? raw.match(/"error":"(\w+)"/)?.[1] ?? raw;
+  const map: Record<string, string> = {
+    BadExpiry: "the agent's session expires too soon to open a payment channel",
+    ExceedsSessionCap: "that would go over the agent's spending cap",
+    ExceedsMerchantDailyCap: "that would go over the merchant's daily cap",
+    ExceedsMaxChannel: "that's more than the max per payment channel",
+    MerchantNotAllowed: "that merchant isn't on the allow list",
+    SessionIsRevoked: "the agent was revoked (frozen) by the owner",
+    SessionExpired: "the agent's session has expired",
+    InsufficientBalance: "the vault doesn't have enough free USDT",
+    leash_circuit_open: "spending is paused by the circuit breaker",
+    leash_rate_limited: "too many payments too fast",
+  };
+  return map[m] ? `${map[m]} (${m})` : raw.replace(/^Failed to create payment payload: /, "").slice(0, 200);
+}
 type Resource = { resource: string; accepts: { network: string; amount: string }[] };
 const PAIRS = ["USD/INR", "EUR/USD", "USD/JPY", "GBP/USD"];
 
@@ -53,6 +71,8 @@ export async function runDemoAgent(vaultIn: string, callsIn: number) {
       vault,
       networks: [`eip155:${CHAIN_ID}`],
       channelAmount: () => parseUnits6("1"),
+      // the vault rejects a channel that outlives its session (BadExpiry): never ask for one
+      sessionExpiry: expiry,
       onEvent: (e) => {
         if (e.type === "channel_opened") opened.push({ merchant: e.merchant, txHash: e.txHash });
       },
@@ -65,12 +85,18 @@ export async function runDemoAgent(vaultIn: string, callsIn: number) {
       const u = new URL(r.resource);
       if (u.pathname === "/quote") u.searchParams.set("pair", PAIRS[i % PAIRS.length]);
       if (u.pathname === "/translate") (u.searchParams.set("text", "hello agent"), u.searchParams.set("to", "hi"));
-      const res = await paid(u.toString());
+      let res: Response;
+      try {
+        res = await paid(u.toString());
+      } catch (e) {
+        refused = friendlyRefusal(e instanceof Error ? e.message : String(e));
+        break;
+      }
       if (res.status !== 200) {
         refused = res.headers.get("PAYMENT-REQUIRED") ? "payment refused by your limits" : `HTTP ${res.status}`;
         try {
           const j = JSON.parse(Buffer.from(res.headers.get("PAYMENT-REQUIRED") ?? "", "base64").toString());
-          if (j.error) refused = j.error;
+          if (j.error) refused = friendlyRefusal(j.error);
         } catch {
           /* keep generic */
         }

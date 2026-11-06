@@ -54,3 +54,13 @@ export const money = (atomic: string | number | bigint | undefined) => {
   const v = Number(BigInt(atomic)) / 1e6;
   return v !== 0 && Math.abs(v) < 0.01 ? v.toFixed(4) : v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
+
+/** Plain-language version of an attestor policy refusal (F8.1 R1/R2). */
+export function friendlyPolicy(reason: string): string {
+  const usd = (a: string) => `${(Number(a) / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT`;
+  const r1 = reason.match(/R1: \w+ for \S+ may at most ([\d.]+)× its value 24 h ago \((\d+) → max (\d+), asked (\d+)\)/);
+  if (r1) return `Blocked by the safety policy: a limit can grow at most ${r1[1]}× in 24 hours. It was ${usd(r1[2])}, so the most allowed now is ${usd(r1[3])}, and the agent asked for ${usd(r1[4])}. Nothing was signed.`;
+  const r2 = reason.match(/R2: daily loosening ceiling (\d+) exceeded \(used (\d+) in 24 h \+ asked (\d+)\)/);
+  if (r2) return `Blocked by the safety policy: at most ${usd(r2[1])} of new spending room per day (${usd(r2[2])} already used, ${usd(r2[3])} asked). Nothing was signed.`;
+  return reason.replace(/^(blocked by )?attestor policy: /i, "Blocked by the safety policy: ");
+}

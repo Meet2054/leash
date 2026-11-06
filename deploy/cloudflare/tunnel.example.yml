@@ -1,22 +1,18 @@
-# Cloudflare Tunnel for the live demo: leash.<your-domain> → the backend host (no open ports).
-# 1. cloudflared tunnel login                         (pick the zone, e.g. permissionless.in)
-# 2. cloudflared tunnel create leash                  (writes ~/.cloudflared/<TUNNEL_ID>.json — a credential, never commit it)
-# 3. cloudflared tunnel route dns --overwrite-dns leash permissionless.in   (and www., leash.)
-# 4. copy this file to ~/.cloudflared/leash.yml, fill TUNNEL_ID, then:
-#    cloudflared tunnel --config ~/.cloudflared/leash.yml run leash
+# Cloudflare Tunnel for the live demo (copy to ~/.cloudflared/leash.yml, fill TUNNEL_ID).
+# cloudflared tunnel login · cloudflared tunnel create leash · cloudflared tunnel route dns [--overwrite-dns] leash <host>
+# http2 instead of QUIC: venue Wi-Fi dropped UDP and took the site down for ~20 s (journal #40).
 tunnel: <TUNNEL_ID>
 credentials-file: /home/<user>/.cloudflared/<TUNNEL_ID>.json
+protocol: http2
 ingress:
-  # owner app + attestor (Next.js, `pnpm --filter @leash/web start` bound to 127.0.0.1)
   - hostname: permissionless.in
     service: http://127.0.0.1:3000
   - hostname: www.permissionless.in
     service: http://127.0.0.1:3000
   - hostname: leash.permissionless.in
     service: http://127.0.0.1:3000
-  # optional: expose the facilitator / merchant for remote agents (set ADMIN_TOKEN first)
-  # - hostname: facilitator.permissionless.in
-  #   service: http://127.0.0.1:4021
-  # - hostname: merchant.permissionless.in
-  #   service: http://127.0.0.1:4022
+  - hostname: facilitator.permissionless.in
+    service: http://127.0.0.1:4021
+  - hostname: merchant.permissionless.in
+    service: http://127.0.0.1:4022
   - service: http_status:404

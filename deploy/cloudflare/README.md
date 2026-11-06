@@ -12,8 +12,9 @@
 ```bash
 # 1. backend (same as local; secrets in .env, never committed)
 pnpm install
-pnpm facilitator &          # :4021
-pnpm merchant &             # :4022
+# ADMIN_TOKEN must be set in .env before exposing the facilitator (it guards /admin/* and /audit)
+DEMO_FAUCET=1 BIND_HOST=127.0.0.1 pnpm facilitator &                                     # :4021 → facilitator.permissionless.in
+MERCHANT_PUBLIC_URL=https://merchant.permissionless.in BIND_HOST=127.0.0.1 pnpm merchant &  # :4022 → merchant.permissionless.in
 pnpm --filter @leash/web build
 APP_URL=https://permissionless.in \
 WORLD_FLOW=browser WORLD_REDIRECT_URI=https://permissionless.in/api/world/callback \
