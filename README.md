@@ -341,6 +341,7 @@ A valid voucher passes the same check (the control), so the refusals are meaning
 ## Deploy (live link)
 - **https://permissionless.in** runs through a Cloudflare Tunnel to the backend host, which runs the owner app + attestor, the facilitator and the merchant.
 - How to run it on any server: [`deploy/cloudflare/README.md`](deploy/cloudflare/README.md). The VPS alternative (Caddy + pm2) is in [`deploy/`](deploy/).
+- **One command keeps it all up:** `scripts/serve.sh start` (also `stop`, `status`). It keeps the Mac awake with `caffeinate`, starts the facilitator, merchant, web app, Ollama and the tunnel, restarts any that exits, and restarts the tunnel if the public site stops answering. It runs detached, so closing the terminal doesn't stop it. Closing the laptop lid still sleeps a Mac, so keep the lid open (the screen may turn off), or use a server.
 
 ## Repo map
 | Path | What |
