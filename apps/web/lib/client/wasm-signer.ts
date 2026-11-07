@@ -103,7 +103,7 @@ export function wasmSigner(): WasmSigner {
       if (!got.prf) {
         // this platform only gives the PRF secret on a second ceremony, which needs its own tap
         pendingPasskey = { credId: got.credId, prfSalt: got.prfSalt };
-        throw Object.assign(new Error("Passkey created. Tap \"Protect with passkey\" once more to finish."), { name: "PasskeyStep2" });
+        throw Object.assign(new Error("Passkey created. Tap \"Add a passkey\" once more to finish."), { name: "PasskeyStep2" });
       }
       pendingPasskey = undefined;
       const { credId, prfSalt, prf } = got as { credId: Uint8Array; prfSalt: Uint8Array; prf: Uint8Array };

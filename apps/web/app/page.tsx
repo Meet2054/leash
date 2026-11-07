@@ -2,11 +2,12 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getAddress, isAddress } from "viem";
-import { FlaskConical, Globe, BookOpen, Briefcase, RefreshCw, SlidersHorizontal, X } from "lucide-react";
+import { FlaskConical, Fingerprint, Globe, BookOpen, Briefcase, Lock, RefreshCw, SlidersHorizontal, X } from "lucide-react";
 import { toast } from "sonner";
 import { api, explorerAddr, usePoll } from "@/lib/client/api";
 import { localhostSigner, type OwnerSigner } from "@/lib/client/signer";
-import { wasmSigner } from "@/lib/client/wasm-signer";
+import { wasmSigner, type WasmSigner } from "@/lib/client/wasm-signer";
+import { passkeyErrorText } from "@/lib/client/passkey";
 import { Onboard } from "@/components/Onboard";
 import { HomeScreen } from "@/components/HomeScreen";
 import { Approvals } from "@/components/Approvals";
@@ -154,6 +155,7 @@ export default function Home() {
             </SelectContent>
           </Select>
         </div>
+        <KeyProtection signer={signer} />
         <div className="space-y-2">
           <div className="text-[14px] text-body">Vault</div>
           <Copyable value={vault} display={vault} className="flex h-[52px] w-full justify-between rounded-[16px] px-4 text-[13px]" />
@@ -186,5 +188,59 @@ export default function Home() {
         </div>
       </Sheet>
     </ShellContext.Provider>
+  );
+}
+
+/** Optional passkey for the owner key: shows the state, and lets the owner add one any time. */
+function KeyProtection({ signer }: { signer: OwnerSigner | null }) {
+  const [state, setState] = useState<"none" | "passkey" | "na">("na");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (signer?.kind === "wasm") (signer as WasmSigner).protection().then(setState).catch(() => undefined);
+    else setState("na");
+  }, [signer]);
+  if (state === "na") return null;
+  if (state === "passkey")
+    return (
+      <div className="flex items-center gap-3 rounded-[16px] bg-green-bg p-3.5 text-[15px] text-green">
+        <Lock className="size-[18px] shrink-0" /> Owner key is protected with a passkey on this device.
+      </div>
+    );
+  return (
+    <div className="space-y-2 rounded-[16px] bg-surface p-3.5">
+      <div className="text-[15px] leading-[21px] text-body">
+        <b className="font-semibold text-ink">Passkey (optional).</b> Lock your owner key on this device with Face ID or your fingerprint. Everything works without it.
+      </div>
+      <Button
+        variant="secondary"
+        className="w-full"
+        disabled={busy}
+        onClick={async () => {
+          const w = signer as WasmSigner;
+          const protecting = w.protectWithPasskey(); // first, right inside the tap (iOS)
+          const backup = w.exportBackup().catch(() => undefined);
+          setBusy(true);
+          try {
+            await protecting;
+            setState("passkey");
+            const json = await backup;
+            if (json) {
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+              a.download = "leash-owner-key-backup.json";
+              a.click();
+            }
+            toast.success("Passkey added. Keep the backup file somewhere safe.");
+          } catch (e) {
+            if ((e as { name?: string })?.name === "PasskeyStep2") toast.message(e instanceof Error ? e.message : String(e));
+            else toast.error(passkeyErrorText(e), { duration: 9000 });
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <Fingerprint /> Add a passkey
+      </Button>
+    </div>
   );
 }

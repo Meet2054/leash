@@ -536,15 +536,16 @@ function KeyStep(props: {
         <CopyText value={props.pubKeyHash!} display={short(props.pubKeyHash!, 6)} color="#0643d2" border="#5c84dd" />
         {wasm ? props.protection === "passkey" ? <Pill tone="ok"><Lock className="size-3" /> Passkey-protected</Pill> : null : <Pill tone="blue">Local signer</Pill>}
       </div>
+      <Button className="w-full" onClick={props.onContinue}>
+        Continue
+      </Button>
       {wasm && props.protection === "none" && (
-        <Button className="w-full" onClick={props.onProtect}>
-          <Fingerprint /> Protect with passkey
-        </Button>
-      )}
-      {(!wasm || props.protection === "passkey") && (
-        <Button className="w-full" onClick={props.onContinue}>
-          Continue
-        </Button>
+        <div className="w-full space-y-1.5">
+          <Button variant="soft" className="w-full" onClick={props.onProtect}>
+            <Fingerprint /> Add a passkey <span className="font-normal text-body">(optional)</span>
+          </Button>
+          <p className="text-center text-[12px] leading-4 text-addr">Locks the key on this device with Face ID or your fingerprint. You can add it later in Settings.</p>
+        </div>
       )}
       {wasm && (
         <div className="grid w-full grid-cols-2 gap-3">
@@ -566,11 +567,6 @@ function KeyStep(props: {
             </label>
           </Button>
         </div>
-      )}
-      {wasm && props.protection === "none" && (
-        <button type="button" className="text-[13px] text-addr underline-offset-4 hover:text-ink hover:underline" onClick={props.onContinue}>
-          Continue without a passkey
-        </button>
       )}
     </div>
   );
@@ -729,7 +725,7 @@ function InAppNote() {
   if (!show) return null;
   return (
     <div className="w-full rounded-[14px] bg-amber-bg px-3.5 py-3 text-left text-[13px] leading-[18px] text-[#6b4a06]">
-      You&apos;re inside another app&apos;s browser (like the Google app). Passkeys often don&apos;t work here. For the best result, open this page in Safari or Chrome.
+      You&apos;re inside another app&apos;s browser (like the Google app). Everything works here; only the optional passkey may not. To add one, open this page in Safari or Chrome.
       <button
         type="button"
         className="mt-1.5 block font-semibold text-amber underline underline-offset-2"

@@ -114,10 +114,10 @@ export function passkeyErrorText(e: unknown): string {
   const inApp = typeof navigator !== "undefined" && /GSA\/|FBAN|FBAV|Instagram|LinkedInApp|Line\/|Snapchat|Twitter|WhatsApp/i.test(navigator.userAgent);
   if (name === "NotAllowedError")
     return inApp
-      ? "This app's built-in browser blocked the passkey. Open permissionless.in in Safari or Chrome, or tap \"Continue without a passkey\" and keep the backup file."
-      : "The passkey prompt was closed or blocked. Tap \"Protect with passkey\" again. If it keeps failing, open the site in Safari or Chrome, or continue without a passkey and keep the backup file.";
-  if (name === "NotSupportedError" || /PRF/i.test(msg)) return "This browser or passkey can't encrypt the key (it needs the WebAuthn PRF feature). Continue without a passkey and keep the backup file.";
-  if (name === "InvalidStateError") return "A passkey for this already exists on this device. Tap \"Protect with passkey\" again.";
+      ? "This app's built-in browser blocked the passkey. Open permissionless.in in Safari or Chrome, or just tap \"Continue\": the passkey is optional."
+      : "The passkey prompt was closed or blocked. Tap \"Add a passkey\" again. If it keeps failing, skip it and tap \"Continue\": the passkey is optional.";
+  if (name === "NotSupportedError" || /PRF/i.test(msg)) return "This browser or passkey can't encrypt the key (it needs the WebAuthn PRF feature). Skip it and tap \"Continue\": the passkey is optional.";
+  if (name === "InvalidStateError") return "A passkey for this already exists on this device. Tap \"Add a passkey\" again.";
   return msg;
 }
 
