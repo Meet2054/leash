@@ -1,7 +1,7 @@
 "use client";
 import { bytesToHex, hexToBytes, type Hex } from "viem";
 import type { OwnerSigner } from "./signer";
-import { createPrfPasskey, credIdOf, isEncryptedSeed, openSeed, prfEval, saltOf, sealSeed, type EncryptedSeed } from "./passkey";
+import { credIdOf, isEncryptedSeed, openSeed, prfEval, registerPrfPasskey, saltOf, sealSeed, type EncryptedSeed } from "./passkey";
 
 /** Tiny IndexedDB key/value store for the owner's Falcon seed (never leaves the browser). */
 function idb<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
@@ -37,6 +37,8 @@ export function wasmSigner(): WasmSigner {
   let keyP: Promise<import("./falcon").FalconKey> | undefined;
   let lockTimer: ReturnType<typeof setTimeout> | undefined;
   let unlocked = false;
+  /** a passkey registered on a platform that needs a second ceremony (second tap) for its PRF secret */
+  let pendingPasskey: { credId: Uint8Array; prfSalt: Uint8Array } | undefined;
 
   const seedOf = async (rec: SeedRecord | undefined): Promise<Uint8Array> => {
     if (rec === undefined) {
@@ -87,11 +89,27 @@ export function wasmSigner(): WasmSigner {
       return isEncryptedSeed(await getRecord()) ? "passkey" : "none";
     },
     async protectWithPasskey() {
+      // iOS/WebKit only opens the passkey sheet if the WebAuthn call starts right inside the tap, so it must be
+      // the very first thing here: no IndexedDB read, WASM load or download before it.
+      let ceremony: Promise<{ credId: Uint8Array; prfSalt: Uint8Array; prf?: Uint8Array }>;
+      if (pendingPasskey) {
+        const p = pendingPasskey;
+        ceremony = prfEval(p.credId, p.prfSalt).then((prf) => ({ ...p, prf }));
+      } else {
+        const prfSalt = crypto.getRandomValues(new Uint8Array(32));
+        ceremony = registerPrfPasskey(prfSalt).then((r) => ({ credId: r.credId, prfSalt, prf: r.prf }));
+      }
+      const got = await ceremony;
+      if (!got.prf) {
+        // this platform only gives the PRF secret on a second ceremony, which needs its own tap
+        pendingPasskey = { credId: got.credId, prfSalt: got.prfSalt };
+        throw Object.assign(new Error("Passkey created. Tap \"Protect with passkey\" once more to finish."), { name: "PasskeyStep2" });
+      }
+      pendingPasskey = undefined;
+      const { credId, prfSalt, prf } = got as { credId: Uint8Array; prfSalt: Uint8Array; prf: Uint8Array };
       const rec = await getRecord();
       if (isEncryptedSeed(rec)) return;
       const k = await load();
-      const prfSalt = crypto.getRandomValues(new Uint8Array(32));
-      const { credId, prf } = await createPrfPasskey(prfSalt);
       const sealed = await sealSeed(k.seed, prf, { credId, prfSalt, pubKey: k.pubKey });
       // round-trip before replacing the plaintext record, so a bad PRF result can't lose the key
       const back = await openSeed(sealed, prf);

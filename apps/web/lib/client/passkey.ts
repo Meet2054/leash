@@ -81,6 +81,49 @@ export async function prfEval(credId: Uint8Array, salt: Uint8Array): Promise<Uin
 }
 
 /** Create a passkey with PRF enabled and return its id + the PRF output for `salt`. */
+/**
+ * Registration only: returns the PRF output if the platform gives it at creation (Safari 18+, iCloud Keychain),
+ * otherwise just the credential. The caller decides when to run the second ceremony, because iOS/WebKit only
+ * opens a passkey sheet when the WebAuthn call starts right inside a tap.
+ */
+export async function registerPrfPasskey(salt: Uint8Array): Promise<{ credId: Uint8Array; prf?: Uint8Array }> {
+  const c = (await navigator.credentials.create({
+    publicKey: {
+      challenge: globalThis.crypto.getRandomValues(new Uint8Array(32)),
+      rp: { name: "Leash owner key" },
+      user: { id: globalThis.crypto.getRandomValues(new Uint8Array(16)), name: "leash-owner", displayName: "Leash owner (Falcon key unlock)" },
+      pubKeyCredParams: [
+        { type: "public-key", alg: -7 },
+        { type: "public-key", alg: -257 },
+      ],
+      authenticatorSelection: { residentKey: "preferred", userVerification: "required" },
+      timeout: 60_000,
+      extensions: { prf: { eval: { first: buf(salt) } } } as AuthenticationExtensionsClientInputs,
+    },
+  })) as PublicKeyCredential | null;
+  if (!c) throw new Error("passkey creation cancelled");
+  const p = prfOf(c);
+  if (p?.enabled === false) throw new Error("this passkey/browser does not support the WebAuthn PRF extension; the key stays unencrypted (see README limitations)");
+  return { credId: new Uint8Array(c.rawId), prf: p?.results?.first ? new Uint8Array(p.results.first) : undefined };
+}
+
+/** Plain-language text for WebAuthn failures (NotAllowedError is what iOS shows when a prompt is blocked). */
+export function passkeyErrorText(e: unknown): string {
+  const name = (e as { name?: string })?.name;
+  const msg = e instanceof Error ? e.message : String(e);
+  const inApp = typeof navigator !== "undefined" && /GSA\/|FBAN|FBAV|Instagram|LinkedInApp|Line\/|Snapchat|Twitter|WhatsApp/i.test(navigator.userAgent);
+  if (name === "NotAllowedError")
+    return inApp
+      ? "This app's built-in browser blocked the passkey. Open permissionless.in in Safari or Chrome, or tap \"Continue without a passkey\" and keep the backup file."
+      : "The passkey prompt was closed or blocked. Tap \"Protect with passkey\" again. If it keeps failing, open the site in Safari or Chrome, or continue without a passkey and keep the backup file.";
+  if (name === "NotSupportedError" || /PRF/i.test(msg)) return "This browser or passkey can't encrypt the key (it needs the WebAuthn PRF feature). Continue without a passkey and keep the backup file.";
+  if (name === "InvalidStateError") return "A passkey for this already exists on this device. Tap \"Protect with passkey\" again.";
+  return msg;
+}
+
+/** True inside in-app browsers (Google app, Instagram, …), where passkeys are often blocked. */
+export const inAppBrowser = () => typeof navigator !== "undefined" && /GSA\/|FBAN|FBAV|Instagram|LinkedInApp|Line\/|Snapchat|Twitter|WhatsApp/i.test(navigator.userAgent);
+
 export async function createPrfPasskey(salt: Uint8Array): Promise<{ credId: Uint8Array; prf: Uint8Array }> {
   const c = (await navigator.credentials.create({
     publicKey: {

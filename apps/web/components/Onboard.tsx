@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { VaultLoader } from "@/components/onboard/VaultLoader";
+import { inAppBrowser, passkeyErrorText } from "@/lib/client/passkey";
 import { getAddress, isAddress, keccak256, type Address, type Hex } from "viem";
 import { ArrowLeft, Bot, Check, ChevronDown, ChevronUp, Copy, Download, Fingerprint, Fuel, Globe, Loader2, Lock, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -90,6 +91,12 @@ export function Onboard(props: { cfg: Config; signer: OwnerSigner | null; signer
         .catch(() => undefined);
     else if (signer) setKeyOk(true); // local signer app: nothing to protect here
   }, [signer]);
+  const saveBackup = (json: string) => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+    a.download = "leash-owner-key-backup.json";
+    a.click();
+  };
   const downloadBackup = async () => {
     const json = await (signer as WasmSigner).exportBackup();
     const a = document.createElement("a");
@@ -265,14 +272,22 @@ export function Onboard(props: { cfg: Config; signer: OwnerSigner | null; signer
                     signerError={props.signerError}
                     protection={protection}
                     onProtect={async () => {
+                      const w = signer as WasmSigner;
+                      // the passkey prompt must start first, right inside the tap (iOS blocks it otherwise)
+                      const protecting = w.protectWithPasskey();
+                      // the backup is the only way back if the passkey is lost: read it now, while the key is still unlocked
+                      const backup = w.exportBackup().catch(() => undefined);
                       try {
-                        await downloadBackup(); // the backup is the only way back if the passkey is lost
-                        await (signer as WasmSigner).protectWithPasskey();
+                        await protecting;
                         setProtection("passkey");
                         setKeyOk(true);
+                        const json = await backup;
+                        if (json) saveBackup(json);
                         toast.success("Key protected with your passkey. Keep the backup file somewhere safe.");
                       } catch (e) {
-                        toast.error(e instanceof Error ? e.message : String(e));
+                        const step2 = (e as { name?: string })?.name === "PasskeyStep2";
+                        if (step2) toast.message(e instanceof Error ? e.message : String(e));
+                        else toast.error(passkeyErrorText(e), { duration: 9000 });
                       }
                     }}
                     onBackup={() => downloadBackup().catch((e) => toast.error(e instanceof Error ? e.message : String(e)))}
@@ -506,6 +521,7 @@ function KeyStep(props: {
   const wasm = props.signer?.kind === "wasm";
   return (
     <div className="flex flex-col items-center gap-3">
+      <InAppNote />
       <div className="flex flex-wrap items-center justify-center gap-2">
         <CopyText value={props.pubKeyHash!} display={short(props.pubKeyHash!, 6)} color="#0643d2" border="#5c84dd" />
         {wasm ? props.protection === "passkey" ? <Pill tone="ok"><Lock className="size-3" /> Passkey-protected</Pill> : null : <Pill tone="blue">Local signer</Pill>}
@@ -692,6 +708,25 @@ function ReadyScreen(props: {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** In-app browsers (Google app, Instagram, …) often block passkeys: say so before the tap, with a link to copy. */
+function InAppNote() {
+  const [show, setShow] = useState(false);
+  useEffect(() => setShow(inAppBrowser()), []);
+  if (!show) return null;
+  return (
+    <div className="w-full rounded-[14px] bg-amber-bg px-3.5 py-3 text-left text-[13px] leading-[18px] text-[#6b4a06]">
+      You&apos;re inside another app&apos;s browser (like the Google app). Passkeys often don&apos;t work here. For the best result, open this page in Safari or Chrome.
+      <button
+        type="button"
+        className="mt-1.5 block font-semibold text-amber underline underline-offset-2"
+        onClick={() => navigator.clipboard?.writeText(location.href).then(() => toast.success("Link copied. Paste it into Safari or Chrome.")).catch(() => undefined)}
+      >
+        Copy link
+      </button>
     </div>
   );
 }

@@ -32,3 +32,14 @@ describe("F8.3 passkey-encrypted Falcon seed (crypto part; WebAuthn itself needs
     expect(isEncryptedSeed("0x" + "ab".repeat(48))).toBe(false);
   });
 });
+
+describe("passkey error text (iOS blocks prompts that don't start inside a tap)", async () => {
+  const { passkeyErrorText } = await import("../lib/client/passkey");
+  it("explains a blocked prompt in plain words", () => {
+    const e = Object.assign(new Error("The request is not allowed by the user agent or the platform in the current context"), { name: "NotAllowedError" });
+    expect(passkeyErrorText(e)).toMatch(/Protect with passkey" again|Safari or Chrome/);
+  });
+  it("explains a missing PRF feature", () => {
+    expect(passkeyErrorText(new Error("this passkey/browser does not support the WebAuthn PRF extension"))).toMatch(/Continue without a passkey/);
+  });
+});
