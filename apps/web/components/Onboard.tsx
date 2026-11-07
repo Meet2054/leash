@@ -24,12 +24,12 @@ import { cn } from "@/lib/utils";
 type Resource = { accepts: { payTo: string; network?: string }[]; resource: string };
 type StepN = 1 | 2 | 3 | 4;
 
-/** Per-step theme, exact from Figma (notch colours sample the page gradient at each divider). */
-const THEME: Record<StepN, { page: string; hero: string; color: string; tint: string; notch: [string, string, string]; cta: "default" | "gold" | "green" | "red" }> = {
-  1: { page: "step-blue", hero: "/design/hero-blue.webp", color: "#0643d2", tint: "#eef3fe", notch: ["#4a77db", "#517cdc", "#5881dc"], cta: "default" },
-  2: { page: "step-gold", hero: "/design/hero-gold.webp", color: "#a16b08", tint: "#fffdec", notch: ["#9f7509", "#fcbf11", "#fcbf11"], cta: "gold" },
-  3: { page: "step-green", hero: "/design/hero-green.webp", color: "#096c37", tint: "#f0fff1", notch: ["#0c7f46", "#0e8a4b", "#16c365"], cta: "green" },
-  4: { page: "step-red", hero: "/design/hero-red.webp", color: "#930328", tint: "#ffe9ef", notch: ["#ed6c96", "#f079a1", "#f286ac"], cta: "red" },
+/** Per-step theme, exact from Figma. */
+const THEME: Record<StepN, { page: string; hero: string; color: string; tint: string; cta: "default" | "gold" | "green" | "red" }> = {
+  1: { page: "step-blue", hero: "/design/hero-blue.webp", color: "#0643d2", tint: "#eef3fe", cta: "default" },
+  2: { page: "step-gold", hero: "/design/hero-gold.webp", color: "#a16b08", tint: "#fffdec", cta: "gold" },
+  3: { page: "step-green", hero: "/design/hero-green.webp", color: "#096c37", tint: "#f0fff1", cta: "green" },
+  4: { page: "step-red", hero: "/design/hero-red.webp", color: "#930328", tint: "#ffe9ef", cta: "red" },
 };
 const TITLES: Record<StepN, string> = { 1: "Your owner key", 2: "Set your agent's limits", 3: "Verify you're a human", 4: "Create your vault" };
 const BODIES: Record<StepN, string> = {
@@ -238,7 +238,12 @@ export function Onboard(props: { cfg: Config; signer: OwnerSigner | null; signer
   };
 
   return (
-    <div className={cn("min-h-dvh w-full", theme.page)} style={{ ["--step" as string]: theme.color }}>
+    <div className="relative isolate min-h-dvh w-full" style={{ ["--step" as string]: theme.color }}>
+      <div className="fixed inset-0 -z-10" aria-hidden>
+        {([1, 2, 3, 4] as StepN[]).map((n) => (
+          <div key={n} className={cn("absolute inset-0 transition-opacity duration-700 ease-in-out", THEME[n].page, n === active ? "opacity-100" : "opacity-0")} />
+        ))}
+      </div>
       <div className="mx-auto flex w-full max-w-[430px] flex-col gap-6 px-5 pb-10 pt-[max(env(safe-area-inset-top),52px)]">
         {props.onExit && (
           <button type="button" onClick={props.onExit} className="-mb-2 inline-flex items-center gap-1.5 self-start rounded-full bg-white/15 px-3 py-1.5 text-[13px] font-medium text-white backdrop-blur hover:bg-white/25">
@@ -250,16 +255,21 @@ export function Onboard(props: { cfg: Config; signer: OwnerSigner | null; signer
           <br />a leash
         </h1>
 
-        <div className="relative rounded-[22px] bg-white">
-          {/* Hero */}
-          <div className="p-2.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={theme.hero} alt="" className="h-[240px] w-full rounded-[18px] object-cover" />
-          </div>
-
+        <div className="relative">
           {([1, 2, 3, 4] as StepN[]).map((n, i) => (
-            <div key={n}>
-              {i > 0 && <Divider color={theme.color} notch={theme.notch[i - 1]} />}
+            <div key={n} className={cn("relative bg-white", n === 1 ? "notch-b rounded-t-[22px]" : n === 4 ? "notch-t rounded-b-[22px]" : "notch-tb")}>
+              {n === 1 && (
+                <div className="p-2.5">
+                  {/* hero art cross-fades with the step colour */}
+                  <div className="relative h-[240px] overflow-hidden rounded-[18px]">
+                    {([1, 2, 3, 4] as StepN[]).map((h) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={h} src={THEME[h].hero} alt="" className={cn("absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ease-in-out", h === active ? "opacity-100" : "opacity-0")} />
+                    ))}
+                  </div>
+                </div>
+              )}
+              {i > 0 && <Divider color={theme.color} />}
               <StepBlock n={n} state={stateOf(n)} color={theme.color} onReopen={!attemptId && n < active ? () => reopen(n) : undefined}>
                 {n === 1 && (
                   <KeyStep
@@ -460,7 +470,7 @@ function StepBlock({ n, state, color, onReopen, children }: { n: StepN; state: "
     );
   const inner =
     state === "done" ? (
-      <span className="inline-flex items-center gap-2" style={{ color }}>
+      <span className="inline-flex items-center gap-2 transition-colors duration-700" style={{ color }}>
         <span className="text-[20px] font-semibold leading-7 tracking-[-0.015em]">{TITLES[n]}</span>
         <span className="grid size-5 place-items-center rounded-full text-white" style={{ background: color }}>
           <Check className="size-3 stroke-[3.5]" />
@@ -482,15 +492,12 @@ function StepBlock({ n, state, color, onReopen, children }: { n: StepN; state: "
   );
 }
 
-/** Ticket divider: 2.5px dashed line (7/5) in the step colour at 55%, with two 16px notches. */
-function Divider({ color, notch }: { color: string; notch: string }) {
-  return (
-    <div className="relative h-[2.5px]" aria-hidden>
-      <div className="absolute inset-x-0 top-0 h-[2.5px] opacity-55" style={{ backgroundImage: `repeating-linear-gradient(90deg, ${color} 0 7px, transparent 7px 12px)` }} />
-      <span className="absolute -left-2 top-1/2 size-4 -translate-y-1/2 rounded-full" style={{ background: notch }} />
-      <span className="absolute -right-2 top-1/2 size-4 -translate-y-1/2 rounded-full" style={{ background: notch }} />
-    </div>
-  );
+/**
+ * Ticket divider: 2.5px dashed line (7/5) in the step colour at 55%. The notches at both ends are real
+ * cut-outs in the card (CSS masks .notch-t/.notch-b/.notch-tb), so the page background shows through.
+ */
+function Divider({ color }: { color: string }) {
+  return <div aria-hidden className="absolute inset-x-[14px] top-0 h-[2.5px] opacity-55 transition-[background-image] duration-700" style={{ backgroundImage: `repeating-linear-gradient(90deg, ${color} 0 7px, transparent 7px 12px)` }} />;
 }
 
 function KeyStep(props: {
