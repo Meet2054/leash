@@ -159,8 +159,21 @@
     color-scheme: light;
     -webkit-tap-highlight-color: transparent;
   }
+  /* never let one long word (a 42-char address, a tx hash, an agent's pasted text) widen the page on a phone */
+  html,
+  body {
+    overflow-x: clip;
+  }
   body {
     @apply bg-background text-foreground;
+    overflow-wrap: anywhere;
+  }
+  /* but never break inside controls, numbers or chips that are meant to stay on one line */
+  button,
+  [data-slot="button"],
+  .whitespace-nowrap,
+  .num {
+    overflow-wrap: normal;
   }
 }
 

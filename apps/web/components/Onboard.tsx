@@ -164,17 +164,27 @@ export function Onboard(props: { cfg: Config; signer: OwnerSigner | null; signer
       const pqSig = await signer.sign(digest, "InitConfig");
       setBusy("Creating your vault (we pay the gas)…");
       setPhase("deploy");
-      const r = await api<{ vault: string; txHash: string }>(`/api/onboard/${attempt.attemptId}/create`, { pqPubKey: await signer.pubKey(), pqSig });
-      setCreated(r);
+      const r = await api<{ vault: string; txHash?: string; existing?: boolean }>(`/api/onboard/${attempt.attemptId}/create`, { pqPubKey: await signer.pubKey(), pqSig });
+      // this key + World ID already made a vault (its address is fixed by both): open that one
+      setCreated({ vault: r.vault, txHash: r.txHash ?? "" });
+      if (r.existing) toast.success("Welcome back: this key and World ID already have a vault. Opening it.");
       // remember it right away (the app shell reads this key), so a reload on the "ready" screen keeps the vault
       try {
         localStorage.setItem("leash.vault", r.vault);
       } catch {
         /* storage unavailable */
       }
-      toast.success("Vault created");
+      if (!r.existing) toast.success("Vault created");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      const reason = msg.match(/simulation_reverted:\s*([A-Za-z]+)/)?.[1];
+      const plain: Record<string, string> = {
+        FailedDeployment: "a vault already exists for this key and World ID. Open it from Settings, or set up again from a private window",
+        BadPqSignature: "the owner-key signature didn't check out. Reload the page and try again",
+        BadWorldApproval: "the World ID approval expired. Verify again",
+        Expired: "the World ID approval expired. Verify again",
+      };
+      toast.error(reason ? `Couldn't create the vault: ${plain[reason] ?? reason}.` : msg.replace(/^relay \/relay\/\w+ → \d+: /, ""), { duration: 9000 });
     } finally {
       setBusy(undefined);
       setPhase(null);
@@ -229,7 +239,7 @@ export function Onboard(props: { cfg: Config; signer: OwnerSigner | null; signer
           { dot: "#096c37", label: "World ID" },
           { dot: "#0643d2", label: created ? short(created.vault, 4) : "your vault", mono: true },
         ]}
-        txUrl={created ? explorerTx(created.txHash) : undefined}
+        txUrl={created?.txHash ? explorerTx(created.txHash) : undefined}
         onGo={() => created && props.setVault(created.vault)}
       />
       <div className="fixed inset-0 -z-10" aria-hidden>
