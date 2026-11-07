@@ -6,6 +6,7 @@
  */
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { VaultLoader } from "@/components/onboard/VaultLoader";
 import { getAddress, isAddress, keccak256, type Address, type Hex } from "viem";
 import { ArrowLeft, Bot, Check, ChevronDown, ChevronUp, Copy, Download, Fingerprint, Fuel, Globe, Loader2, Lock, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -180,31 +181,6 @@ export function Onboard(props: { cfg: Config; signer: OwnerSigner | null; signer
   const theme = THEME[active];
 
   // ---------------------------------------------------------------- loader / ready / all-set screens
-  if (phase) return <CreatingScreen phase={phase} />;
-  if (created)
-    return (
-      <ReadyScreen
-        title="Your vault is ready"
-        body={
-          <>
-            Your agent is on a leash.
-            <br />
-            It can only spend within the limits you set.
-          </>
-        }
-        chips={[
-          { dot: "#a16b08", label: `${cap} USDT · ${ttlHours} h` },
-          { dot: "#096c37", label: "World ID" },
-          { dot: "#0643d2", label: short(created.vault, 4), mono: true },
-        ]}
-        extra={
-          <a className="text-[13px] font-medium text-blue underline-offset-4 hover:underline" href={explorerTx(created.txHash)} target="_blank" rel="noreferrer">
-            View the creation transaction
-          </a>
-        }
-        primary={{ label: "Go to my vault", onClick: () => props.setVault(created.vault) }}
-      />
-    );
   if (props.vault && current?.deployed && !showWizard) {
     const linked = Boolean(current.worldSubjectHash && !/^0x0+$/.test(current.worldSubjectHash));
     return (
@@ -239,6 +215,16 @@ export function Onboard(props: { cfg: Config; signer: OwnerSigner | null; signer
 
   return (
     <div className="relative isolate min-h-dvh w-full" style={{ ["--step" as string]: theme.color }}>
+      <VaultLoader
+        stage={created ? "done" : phase}
+        chips={[
+          { dot: "#a16b08", label: `${cap} USDT · ${ttlHours} h` },
+          { dot: "#096c37", label: "World ID" },
+          { dot: "#0643d2", label: created ? short(created.vault, 4) : "your vault", mono: true },
+        ]}
+        txUrl={created ? explorerTx(created.txHash) : undefined}
+        onGo={() => created && props.setVault(created.vault)}
+      />
       <div className="fixed inset-0 -z-10" aria-hidden>
         {([1, 2, 3, 4] as StepN[]).map((n) => (
           <div key={n} className={cn("absolute inset-0 transition-opacity duration-700 ease-in-out", THEME[n].page, n === active ? "opacity-100" : "opacity-0")} />
@@ -652,34 +638,6 @@ function TileWall({ mark }: { mark?: { from: string; to: string; shadow: string 
       {/* vignette + bottom fade (Figma) */}
       <div className="absolute inset-0" style={{ background: "radial-gradient(circle at 50% 57%, rgb(243 244 247 / 0) 45%, rgb(243 244 247 / 0.85) 100%)" }} />
       <div className="absolute inset-x-0 bottom-0 h-[300px]" style={{ background: "linear-gradient(180deg, rgb(243 244 247 / 0) 0%, #f3f4f7 55%, #f3f4f7 100%)" }} />
-    </div>
-  );
-}
-
-function CreatingScreen({ phase }: { phase: "sign" | "deploy" }) {
-  const look =
-    phase === "sign"
-      ? { from: "#fabe11", to: "#986806", shadow: "rgb(161 107 8 / 0.35)", dot: "#a16b08", label: "Applying your limits", target: 34 }
-      : { from: "#fbb4d4", to: "#dd1a4e", shadow: "rgb(147 3 40 / 0.35)", dot: "#930328", label: "Deploying your vault", target: 90 };
-  const [pct, setPct] = useState(phase === "sign" ? 6 : 34);
-  useEffect(() => {
-    const t = setInterval(() => setPct((p) => (p < look.target ? p + 1 : p)), phase === "sign" ? 60 : 110);
-    return () => clearInterval(t);
-  }, [phase, look.target]);
-  return (
-    <div className="relative min-h-dvh w-full overflow-hidden bg-[#f3f4f7]">
-      <TileWall mark={look} />
-      <div className="absolute inset-x-0 bottom-[max(env(safe-area-inset-bottom),72px)] flex flex-col items-center gap-2.5 text-center" role="status" aria-live="polite">
-        <div className="text-[17px] font-semibold leading-[22px] tracking-[-0.01em] text-ink">Creating your vault</div>
-        <div className="flex items-center gap-1.5 text-[14px] leading-[18px] text-[#4a4f5e]">
-          <span className="size-1.5 rounded-full" style={{ background: look.dot }} />
-          {look.label}
-        </div>
-        <div className="mt-1 h-0.5 w-40 overflow-hidden rounded-full bg-[#d9dce4]">
-          <div className="h-full rounded-full transition-[width] duration-300" style={{ width: `${pct}%`, background: look.dot }} />
-        </div>
-        <div className="num text-[14px] leading-[18px] text-[#4a4f5e]">{pct}%</div>
-      </div>
     </div>
   );
 }
