@@ -18,6 +18,7 @@ import { useShell } from "@/components/leash/shell";
 import { ApprovalRunner } from "@/components/ApprovalRunner";
 import { renewCap, useMandate, type Session } from "@/components/Mandate";
 import { HomeSheets, type SheetAction } from "@/components/home/HomeSheets";
+import { AddFunds } from "@/components/home/AddFunds";
 import { clock, dateTime, dayTime, merchantLabel, merchantNames, until, type Resource } from "@/components/home/format";
 
 type Approval = { id: string; source: "agent" | "owner"; session: string | null; description: string; reason: string; status: string; statusReason: string | null; createdAt: number; txHash: string | null };
@@ -67,6 +68,7 @@ export function HomeScreen({ vault, cfg, signer }: { vault: string; cfg: Config;
   const services = usePoll<{ items: Resource[] }>(`/api/facilitator/discovery/resources`, 60_000).data;
   const events = usePoll<Event[]>(`/api/facilitator/events?vault=${vault}&limit=12`, 6000).data;
   const [dismissed, setDismissed] = useState<string[]>([]);
+  const [addFunds, setAddFunds] = useState(false);
   const [preAgent, setPreAgent] = useState<string>();
   const [, tick] = useState(0);
 
@@ -149,6 +151,11 @@ export function HomeScreen({ vault, cfg, signer }: { vault: string; cfg: Config;
           { value: money(v.free), label: "Free to spend" },
           { value: money(v.locked), label: "Reserved for open payments" },
         ]}
+        action={
+          <button type="button" onClick={() => setAddFunds(true)} className="flex h-12 w-full items-center justify-center gap-2 rounded-[16px] bg-white text-[16px] font-semibold tracking-[-0.01em] text-blue shadow-[0_4px_14px_rgb(5_26_115/0.18)] transition-transform hover:bg-blue-tile active:scale-[0.99]">
+            <PlusCircle className="size-5" /> Add USDT
+          </button>
+        }
         footer={
           <>
             <Copyable value={vault} light />
@@ -158,6 +165,8 @@ export function HomeScreen({ vault, cfg, signer }: { vault: string; cfg: Config;
           </>
         }
       />
+
+      <AddFunds open={addFunds} onOpenChange={setAddFunds} vault={vault} chainId={cfg.chainId} onAdded={() => setTimeout(m.refresh, 2500)} />
 
       <SectionTitle badge={alerts > 0 ? <Pill tone="bad">{alerts}</Pill> : undefined}>Needs you</SectionTitle>
       {breaker?.state === "open" && (

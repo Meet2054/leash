@@ -134,7 +134,7 @@ export function PageTitle({ title, subtitle }: { title: React.ReactNode; subtitl
 }
 
 /** Blue glow card: the money card. */
-export function GlowCard({ label, value, unit, tiles, footer, className }: { label: React.ReactNode; value: React.ReactNode; unit?: React.ReactNode; tiles?: { value: React.ReactNode; label: React.ReactNode }[]; footer?: React.ReactNode; className?: string }) {
+export function GlowCard({ label, value, unit, tiles, action, footer, className }: { label: React.ReactNode; value: React.ReactNode; unit?: React.ReactNode; tiles?: { value: React.ReactNode; label: React.ReactNode }[]; action?: React.ReactNode; footer?: React.ReactNode; className?: string }) {
   return (
     <div className={cn("glow-card px-6 pb-6 pt-[78px]", className)}>
       <div className="text-center text-[14px] leading-[19px] text-white/90">{label}</div>
@@ -152,6 +152,7 @@ export function GlowCard({ label, value, unit, tiles, footer, className }: { lab
           ))}
         </div>
       )}
+      {action && <div className="mt-3">{action}</div>}
       {footer && <div className="mt-3.5 flex items-center justify-between gap-2 text-[14px] text-white/90">{footer}</div>}
     </div>
   );
