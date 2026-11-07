@@ -258,32 +258,47 @@ export function createApp(ctx: FacilitatorContext) {
   // ---------------------------------------------------------------- demo faucet (testnet only, DEMO_FAUCET=1)
   // Lets a judge or tester who just onboarded try the agent. The relayer sends a fixed amount of testnet USDT
   // to a verified Leash vault: once per vault, capped per day.
+  /**
+   * Testnet top-up: sends test USDT from the relayer's stock to a Leash vault, any amount the owner picks within
+   * limits (per request, per vault per 24 h, and for everyone per 24 h), so a demo can't drain it.
+   */
   app.post("/demo/faucet", async (c) => {
     if (process.env.DEMO_FAUCET !== "1") return c.json({ error: "disabled" }, 404);
-    const b = (await c.req.json().catch(() => ({}))) as { vault?: string };
+    const b = (await c.req.json().catch(() => ({}))) as { vault?: string; amount?: string };
     if (!b.vault || !isAddress(b.vault)) return c.json({ error: "bad_vault" }, 400);
     const vault = getAddress(b.vault);
-    if (!(await ctx.isLeashVault(vault))) return c.json({ error: "not_a_leash_vault", message: "Create your vault first." }, 400);
-    const db = ctx.store.db;
-    db.exec("CREATE TABLE IF NOT EXISTS faucet_grants (vault TEXT PRIMARY KEY, at INTEGER NOT NULL, tx TEXT)");
-    const now = Math.floor(Date.now() / 1000);
-    const used = (db.prepare("SELECT COUNT(*) AS n FROM faucet_grants WHERE at > ?").get(now - 86_400) as { n: number }).n;
-    if (used >= Number(process.env.DEMO_FAUCET_DAILY ?? 15)) return c.json({ error: "faucet_daily_limit", message: "The demo faucet is empty for today." }, 429);
-    const amount = BigInt(process.env.DEMO_FAUCET_AMOUNT ?? "2000000");
-    // reserve first, so concurrent requests can't double-fund the same vault
+    const USDT = (n: string) => BigInt(Math.round(Number(n) * 1e6));
+    const perRequest = USDT(process.env.DEMO_FAUCET_MAX ?? "5");
+    const perVaultDay = USDT(process.env.DEMO_FAUCET_VAULT_DAILY ?? "10");
+    const globalDay = USDT(process.env.DEMO_FAUCET_GLOBAL_DAILY ?? "100");
+    let amount: bigint;
     try {
-      db.prepare("INSERT INTO faucet_grants (vault, at) VALUES (?, ?)").run(vault.toLowerCase(), now);
+      amount = b.amount === undefined ? BigInt(process.env.DEMO_FAUCET_AMOUNT ?? "2000000") : USDT(String(b.amount));
     } catch {
-      return c.json({ error: "already_funded", message: "This vault already received demo USDT." }, 429);
+      return c.json({ error: "bad_amount" }, 400);
     }
+    if (!(amount >= 100_000n && amount <= perRequest)) return c.json({ error: "bad_amount", message: `Pick between 0.1 and ${Number(perRequest) / 1e6} USDT.` }, 400);
+    if (!(await ctx.isLeashVault(vault))) return c.json({ error: "not_a_leash_vault", message: "Create your vault first." }, 400);
+    const stock = (await ctx.client.readContract({ address: ctx.cfg.deployment.token, abi: [{ type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ type: "address" }], outputs: [{ type: "uint256" }] }], functionName: "balanceOf", args: [ctx.relayer.address] })) as bigint;
+    if (stock < amount) return c.json({ error: "faucet_empty", message: `The test faucet has ${Number(stock) / 1e6} USDT left right now. Try a smaller amount.` }, 503);
+    const db = ctx.store.db;
+    db.exec("CREATE TABLE IF NOT EXISTS faucet_topups (id INTEGER PRIMARY KEY AUTOINCREMENT, vault TEXT NOT NULL, amount TEXT NOT NULL, at INTEGER NOT NULL, tx TEXT)");
+    const now = Math.floor(Date.now() / 1000);
+    const sum = (rows: { amount: string }[]) => rows.reduce((t, r) => t + BigInt(r.amount), 0n);
+    // check and reserve in one synchronous step, so concurrent requests can't overspend the limits
+    const vaultUsed = sum(db.prepare("SELECT amount FROM faucet_topups WHERE vault = ? AND at > ?").all(vault.toLowerCase(), now - 86_400) as { amount: string }[]);
+    if (vaultUsed + amount > perVaultDay) return c.json({ error: "faucet_vault_limit", message: `This vault can get ${Number(perVaultDay - vaultUsed) / 1e6} more test USDT today (limit ${Number(perVaultDay) / 1e6} a day).` }, 429);
+    const globalUsed = sum(db.prepare("SELECT amount FROM faucet_topups WHERE at > ?").all(now - 86_400) as { amount: string }[]);
+    if (globalUsed + amount > globalDay) return c.json({ error: "faucet_daily_limit", message: "The test faucet has given out today's limit. Try again tomorrow." }, 429);
+    const id = Number(db.prepare("INSERT INTO faucet_topups (vault, amount, at) VALUES (?, ?, ?)").run(vault.toLowerCase(), amount.toString(), now).lastInsertRowid);
     try {
       const data = encodeFunctionData({ abi: [{ type: "function", name: "transfer", stateMutability: "nonpayable", inputs: [{ type: "address" }, { type: "uint256" }], outputs: [{ type: "bool" }] }], functionName: "transfer", args: [vault, amount] });
       const r = await ctx.relayer.send({ to: ctx.cfg.deployment.token, data, label: "demoFaucet" });
-      db.prepare("UPDATE faucet_grants SET tx = ? WHERE vault = ?").run(r.hash, vault.toLowerCase());
+      db.prepare("UPDATE faucet_topups SET tx = ? WHERE id = ?").run(r.hash, id);
       await ctx.audit.publish({ kind: "DemoFaucet", chainId: ctx.cfg.chain.id, vault, amount: amount.toString(), tx: r.hash });
-      return c.json({ tx: r.hash, amount: amount.toString(), explorerUrl: EXPLORERS[ctx.cfg.chain.id]?.tx(r.hash) });
+      return c.json({ tx: r.hash, amount: amount.toString(), explorerUrl: EXPLORERS[ctx.cfg.chain.id]?.tx(r.hash), leftToday: (perVaultDay - vaultUsed - amount).toString() });
     } catch (e) {
-      db.prepare("DELETE FROM faucet_grants WHERE vault = ? AND tx IS NULL").run(vault.toLowerCase());
+      db.prepare("DELETE FROM faucet_topups WHERE id = ? AND tx IS NULL").run(id);
       return fail(c, e);
     }
   });
