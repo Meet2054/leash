@@ -77,6 +77,7 @@ Track: **From Scratch** (all code written during the event; AI use disclosed; MI
 | 11-07 09:25 | **Passkey made optional** (human request): onboarding 'Continue' is primary, 'Add a passkey (optional)' secondary; can be added later in Settings. web vitest 29/29, 390-px audit 0 overflow | this commit |
 | 11-07 10:12 | **Always-on (human request: laptop sleep caused Bad Gateway).** New `scripts/serve.sh start|stop|status`: caffeinate -ims (no idle/system sleep), supervises facilitator, merchant, web, Ollama, cloudflared (restart on exit, tunnel restart on 530/502/000 twice), runs detached (parent = launchd, survives the Claude session). Switched the live stack to it (~8 s downtime). Crash test: killed web → restarted automatically. Lid close still sleeps a Mac: keep lid open, `sudo pmset -a disablesleep 1` (human, revert with 0), or move to a server (needs keys on it: human decision) | this commit |
 | 11-07 10:57 | **Lid closed 10:48–10:51 → everything resumed on wake, no restarts needed.** serve.sh now also watches Ollama (3 failed checks → start it under supervision) and keeps qwen3.5:4b loaded (keep_alive 30 m, re-warmed every ~10 min). Tested: killed Ollama → supervisor restarted it at the 3rd check, model answered. Gotcha: `pkill -f 'ollama serve'` typed in a shell also kills that shell (its own command line matches) | this commit |
+| 11-11 23:55 | **Bug: serve.sh Ollama restart loop.** The Ollama app relaunched its own `ollama serve` on :11434, so the supervised copy failed `bind: address already in use` every 3 s (6,558 loops, 1.4 MB log); the model always answered. Fix: `supervise_ollama` idles while :11434 answers. Stack restarted (site 200 after ~12 s). Also seen on 11-11: several 530/000 windows of up to ~1 h (laptop asleep / offline); the tunnel recovered on its own each time. **Handoff:** the human paused work; the claude.ai pitch/rehearsal artifacts no longer exist, so local copies of the pitch page, every submission-form answer and the QA scripts are in `data/handoff/` (gitignored). Waiting on the human: the LaunchAgent (auto-start after a reboot), the video, revoking the Figma token | this commit |
 | 11-06 22:05 | **Pitch package:** side-by-side "without vs with Leash" demo (ordinary agent wallet drained for real, tx `0x9a5f…8d51`; Leash: 0 moved); the attack arrives as an invoice email; README "Why now" re-cited (I-HITL arXiv 2610.35835, IC3 BEC $3.05B, McKinsey); private pitch sheet artifact for the team | `f08df1c`, `e00507f` |
 | 11-06 21:25 | **Live red team: 11/11 held** (`apps/agent/src/redteam.ts` on vault `0x94a8…7c8c`). The first run's voucher checks were inconclusive: the test hit `/hedera/quote`, and the control caught it. Fixed and rerun. The tester's real Claude agent is connected via MCP | this commit |
 | 11-06 20:50 | **Leash MCP server** (`apps/mcp`): any AI agent pays through Leash. 8 tools; live smoke over stdio: quote paid 0.01, pay 0x…dEaD → MerchantNotAllowed, change_my_limits(500) → WrongPqKey. Real-agent key `0x978C…40F5` (~/.leash/agent-key.json) waits for the owner to add it | this commit |
@@ -295,12 +296,12 @@ pnpm build:falcon-wasm                          # needs emcc (brew install emscr
 
 ---
 
-## 10. What's next (remaining work, in order)
-1. Real World IdP run (once credentials exist) → update WORLD_DEBRIEF "time to first success (real)".
-2. Hedera (M7): `exact` endpoint via `@x402/hedera` (facilitator = fee payer, USDC `0.0.429274`), mandate checks in the facilitator, HCS topic mirror (`packages/facilitator/src/hcs.ts` expects `@leash/hedera` `createHcsLog`). README section + HashScan links.
-3. Fresh demo vault via web onboarding (WASM key + new session), fund it, rehearse `docs/DEMO_SCRIPT.md`.
-4. Hosting for the live demo link (facilitator + merchant + web; needs Node 22+; Python only for the optional local signer).
-5. M9: record the video, final `LEASH_STATUS.md`, make the repo public.
+## 10. What's next (remaining work, in order; updated 2026-11-11)
+Items 1–5 of the old list (real World, Hedera, demo vault, hosting, public repo) are all done; the submission form was filled in by the human.
+1. **On resume:** `scripts/serve.sh status`, then re-check balances (World vault, lab vault, relayer WBT + USDT faucet stock) before any demo.
+2. **Offered, waiting on a yes from the human:** a macOS LaunchAgent so `scripts/serve.sh start` runs after a reboot or login.
+3. **Only if the human asks:** republish the pitch page from `data/handoff/pitch/index.html`; move the backend to a server (that means keys on the server, which the human has ruled out so far).
+4. **Human:** demo video (`docs/DEMO_SCRIPT.md`); revoke the Figma token; keep the laptop lid open (or `sudo pmset -a disablesleep 1`).
 
 ---
 
@@ -309,9 +310,11 @@ pnpm build:falcon-wasm                          # needs emcc (brew install emscr
 |---|---|---|---|
 | 1 | WBT from https://faucet.testnet.whitechain.io (GitHub ≥30 days + captcha, 2 WBT/day) → **`0xD49fF88e1193Bf66D7e1d2b6d81a190C8a07d0Fc`** | relayer gas | ✅ done once (2026-11-06); repeat when the Stats tab shows < 0.3 WBT |
 | 2 | USDT into the vault | real payments | ✅ done via swap (21.93 USDT). For a new demo vault: swap again (runbook) or withdraw from the old vault |
-| 3 | **World IdP sandbox app**: sign in with Google at https://sandbox.auth.world.org/portal → create app → register an **HTTPS** redirect URI (required even for device flow; no localhost) → client auth `client_secret_basic` → copy the secret (shown once) → put `WORLD_CLIENT_ID`, `WORLD_CLIENT_SECRET` (and optionally `WORLD_ID_ISSUER=https://sandbox.auth.world.org`) in `.env` | real World ID (prize) | ⏳ open |
-| 4 | **A test World identity**: ask the World mentors how hackathon "mocked proofs" work (which issuer, which steps), or get the iOS sandbox World App via TestFlight | complete the real World check | ⏳ open |
+| 3 | **World IdP sandbox app**: sign in with Google at https://sandbox.auth.world.org/portal → create app → register an **HTTPS** redirect URI (required even for device flow; no localhost) → client auth `client_secret_basic` → copy the secret (shown once) → put `WORLD_CLIENT_ID`, `WORLD_CLIENT_SECRET` (and optionally `WORLD_ID_ISSUER=https://sandbox.auth.world.org`) in `.env` | real World ID (prize) | ✅ done; callback `https://permissionless.in/api/world/callback` registered |
+| 4 | **A test World identity**: ask the World mentors how hackathon "mocked proofs" work (which issuer, which steps), or get the iOS sandbox World App via TestFlight | complete the real World check | ✅ done (TestFlight sandbox app) |
 | 5 | **Hedera**: ✅ operator / facilitator fee payer **`0.0.11329302`** (ECDSA; key in `.env`, verified against the account; rotated from the retired `0.0.11328871`); ✅ HCS topic `0.0.11329753`, agent `0.0.11329481`, merchant `0.0.11329482` (`pnpm hedera:bootstrap`); ✅ payments live in HBAR. Optional: USDC to the agent `0.0.11329481` (faucet Network = **Hedera Testnet**, not Arc), then set `HEDERA_PAY_ASSET=usdc` | Hedera prize (M7) | ✅ done (HBAR); USDC optional |
-| 6 | **Hosting** for the live demo link (Railway / Fly / a VPS). Tell us which, or give access | ETHGlobal + sponsors want a live link | ⏳ open |
-| 7 | **Make the GitHub repo public** (and push) when ready | submission | ⏳ open |
-| 8 | **Record the demo video** with us (`docs/DEMO_SCRIPT.md`) | submission | ⏳ open |
+| 6 | **Hosting** for the live demo link (Railway / Fly / a VPS). Tell us which, or give access | ETHGlobal + sponsors want a live link | ✅ https://permissionless.in (Cloudflare tunnel → this laptop, `scripts/serve.sh`); keep the lid open |
+| 7 | **Make the GitHub repo public** (and push) when ready | submission | ✅ public: github.com/Meet2054/leash |
+| 8 | **Record the demo video** with us (`docs/DEMO_SCRIPT.md`) | submission | ⏳ human |
+| 9 | **Revoke the Figma token** that was pasted in chat (Figma → Settings → Security) | hygiene | ⏳ recommended |
+| 10 | **Say yes/no to the LaunchAgent** (auto-start the stack after a reboot) | uptime | ⏳ offered |

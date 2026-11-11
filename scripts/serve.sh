@@ -42,6 +42,23 @@ supervise() {
   ) &
 }
 
+# Like supervise, but stays idle while something else (e.g. the Ollama app, which relaunches itself) already
+# answers on :11434; otherwise its `ollama serve` fails "address already in use" every 3 s forever.
+supervise_ollama() {
+  (
+    while true; do
+      if curl -s -o /dev/null --max-time 3 http://127.0.0.1:11434/api/tags; then
+        sleep 30
+        continue
+      fi
+      log "start ollama"
+      ollama serve >> "$LOGS/ollama.log" 2>&1
+      log "ollama exited ($?); restarting in 3 s"
+      sleep 3
+    done
+  ) &
+}
+
 OLLAMA_SUP=""
 OLLAMA_FAILS=0
 # Ollama must never stay down: if it stops answering 3 checks in a row, (re)start it under our supervision.
@@ -55,7 +72,7 @@ ensure_ollama() {
     log "ollama not answering; starting it"
     pkill -f "ollama serve" 2>/dev/null
     sleep 2
-    supervise ollama ollama serve
+    supervise_ollama
     OLLAMA_SUP=1
     OLLAMA_FAILS=0
   fi
@@ -66,7 +83,7 @@ warm_model() { curl -s -o /dev/null --max-time 180 http://127.0.0.1:11434/api/ge
 run() {
   log "supervisor up (pid $$)"
   caffeinate -ims -w $$ &
-  if ! curl -s -o /dev/null --max-time 2 http://127.0.0.1:11434/api/tags; then supervise ollama ollama serve; OLLAMA_SUP=1; fi
+  if ! curl -s -o /dev/null --max-time 2 http://127.0.0.1:11434/api/tags; then supervise_ollama; OLLAMA_SUP=1; fi
   supervise facilitator env FACILITATOR_PUBLIC_URL=https://facilitator.permissionless.in DEMO_FAUCET=1 BIND_HOST=127.0.0.1 pnpm facilitator
   sleep 6
   supervise merchant env MERCHANT_PUBLIC_URL=https://merchant.permissionless.in BIND_HOST=127.0.0.1 pnpm merchant
